@@ -1,5 +1,4 @@
 <div align="center"><h1 style=align="center">Open Lab Operating System</h1></div>
-<div align="center"><img src="" width="100%"></div>
 <div align="center"><i>Open Source Operating System for Open Source Digital Fabrication Machines
 
 </i></div>
