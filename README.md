@@ -48,9 +48,6 @@ The Machine Server acts as the brain of the machine, handling communication and 
 - Run the Machine Server and ensure WebSocket connection channels match with the interface.
 - Run the Machine Interface.
 
-Getting started
---
-
 Author
 --
 
