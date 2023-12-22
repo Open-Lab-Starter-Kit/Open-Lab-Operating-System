@@ -8,7 +8,7 @@ Open Lab Operating System has been developed by **[InMachines Ingrassia GmbH](ht
 <br>
 
 Software Development:
-- **[Daniele Ingrassia]([https://www.lianehonda.com/](https://www.linkedin.com/in/danieleingrassia/)**
+- **[Daniele Ingrassia](https://www.linkedin.com/in/danieleingrassia/)**
 - **[Sulaiman Tanbari](https://www.linkedin.com/in/mohammad-sulaiman-tanbari/)**
   
 The software is part of the **[Open Lab Starter Kit (OLSK)](https://www.inmachines.net/open-lab-starter-kit)** group of open source digital fabrication machines.
