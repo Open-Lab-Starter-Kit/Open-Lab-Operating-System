@@ -81,3 +81,21 @@ class SharedWebsocketData:
     @property
     def websocket_write_queue(self):
         return self._data['websocket_write_queue']
+
+
+class SharedFastApiData:
+    def __init__(self):
+        manager = SharedDataManager().get_manager()
+        self._data = {
+            'fastapi_read_queue': manager.Queue(),
+            'fastapi_write_queue': manager.Queue(),
+
+        }
+
+    @property
+    def fastapi_read_queue(self):
+        return self._data['fastapi_read_queue']
+
+    @property
+    def fastapi_write_queue(self):
+        return self._data['fastapi_write_queue']

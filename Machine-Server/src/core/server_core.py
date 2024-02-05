@@ -1,10 +1,12 @@
+import json
 import time
-from decouple import config
-from file_management.gcode_file_manager import GCodeFileManager
-from machine_connector.machine_connector import MachineConnector
-from utils.shared_data import SharedMachineData, SharedWebsocketData
+from file_management.file_manager import GCodeFileManager
+from machine_connection.machine_connector import MachineConnector
+from fastapi_server.main import FastApiServer
+from utils.json_parse import JsonParse
+from utils.shared_data import SharedFastApiData, SharedMachineData, SharedWebsocketData
 from utils.common_methods import CommonMethods
-from websocket_connector.websocket_server import WebSocketServer
+from websocket_connection.websocket_connector import WebSocketConnector
 from .constants import CoreConstants as constants
 
 # ServerCore is a module that manage all the services in the machine server
@@ -14,18 +16,22 @@ from .constants import CoreConstants as constants
 class ServerCore:
 
     def __init__(self):
-
         # shared data with processes
-        self.machine_connector_data = SharedMachineData()
-        self.websocket_server_data = SharedWebsocketData()
+        self.machine_connector_shared_data = SharedMachineData()
+        self.websocket_connector_shared_data = SharedWebsocketData()
+        self.fastapi_server_shared_data = SharedFastApiData()
 
         # instance for each process
-        self.machine_connector = MachineConnector(self.machine_connector_data)
-        self.websocket_server = WebSocketServer(self.websocket_server_data)
+        self.machine_connector = MachineConnector(
+            self.machine_connector_shared_data)
+        self.websocket_connector = WebSocketConnector(
+            self.websocket_connector_shared_data)
+        self.fastapi_server = FastApiServer(self.fastapi_server_shared_data)
 
         # regular instance
         self.gcode_file_manager = GCodeFileManager()
         self.common_methods = CommonMethods()
+        self.json_parse = JsonParse()
 
         '''
         flags to check if the process is file execution and
@@ -42,22 +48,25 @@ class ServerCore:
 
     def start(self):
         try:
-            if config('ENV') == "development":
-                print("Server core Started")
+            print("Server is running...")
 
             # start all processes
             self.machine_connector.start()
-            self.websocket_server.start()
+            self.websocket_connector.start()
+            self.fastapi_server.start()
 
-            while self.machine_connector.is_alive() or self.websocket_server.is_alive():
-                # Check for incoming messages from the user to be handled
-                self.handle_incoming_user_data()
+            while (self.machine_connector.is_alive() or
+                   self.websocket_connector.is_alive() or
+                   self.fastapi_server.is_alive()):
+
+                # Check for incoming websocket messages from the user to be handled
+                self.handle_incoming_websocket_messages()
 
                 # Check for incoming messages from the machine to be handled
                 self.handle_incoming_machine_data()
 
-                # Check the list of gcode files in the system
-                self.handle_files_listing()
+                # check if there is any reset api requests
+                self.handle_rest_api_calls()
 
                 # Check if there is a file getting executed
                 self.handle_file_execution()
@@ -72,122 +81,188 @@ class ServerCore:
             # Stop the machine connector process
             self.machine_connector.terminate()
             self.machine_connector.join()
-            # Stop the websocket server process
-            self.websocket_server.terminate()
-            self.websocket_server.join()
+            # Stop the websocket connector process
+            self.websocket_connector.terminate()
+            self.websocket_connector.join()
+            # Stop the fastapi server process
+            self.fastapi_server.terminate()
+            self.fastapi_server.join()
 
-    def handle_incoming_user_data(self):
+    def handle_incoming_websocket_messages(self):
         # add data coming from user interface to serial write queue
-        if not self.websocket_server_data.websocket_read_queue.empty():
-            data = self.websocket_server_data.websocket_read_queue.get()
+        if not self.websocket_connector_shared_data.websocket_read_queue.empty():
+            type, data = self.websocket_connector_shared_data.websocket_read_queue.get()
 
             # handle different type of data sent from user
-            self.analyze_user_data(data)
+            self.analyze_websocket_messages(type, data)
 
-    def analyze_user_data(self, data):
+    def analyze_websocket_messages(self, type, data):
         # handle data send to serial
-        if constants.SERIAL_PREFIX in data:
-            self.handle_serial_commands(data)
+        command = data.get("command")
+        if constants.REAL_TIME_COMMAND_DATA_TYPE == type:
+            self.handle_real_time_commands(command)
+        elif constants.NORMAL_COMMAND_DATA_TYPE == type:
+            self.handle_normal_commands(command)
+        elif constants.SERIAL_COMMAND_DATA_TYPE == type:
+            self.handle_serial_commands(type, command)
 
-        # handle file commands from user
-        elif constants.FILE_PREFIX in data:
-            self.handle_file_management_commands(data)
+    # handle real time commands
 
-    # handle commands user want to send to serial
-
-    def handle_serial_commands(self, data):
-        # remove serial commands prefix and send it to serial
-        serial_command = data.removeprefix(constants.SERIAL_PREFIX)
-
+    def handle_real_time_commands(self, command):
         # received stop command from user
-        if serial_command == constants.GRBL_COMMAND_STOP:
+        if command == constants.GRBL_COMMAND_STOP:
             self.machine_connector.stop_machine()
             self.reset_the_core_system()
 
-        # received a homing command
-        elif serial_command == constants.GRBL_COMMAND_HOMING:
-            self.machine_connector.homing_machine()
-            self.reset_the_core_system()
-
         # received pause command from user
-        elif serial_command == constants.GRBL_COMMAND_PAUSE:
+        elif command == constants.GRBL_COMMAND_PAUSE:
             self.update_file_execution_status()
             self.machine_connector.pause_machine()
 
         # received resume command from user
-        elif serial_command == constants.GRBL_COMMAND_RESUME:
+        elif command == constants.GRBL_COMMAND_RESUME:
             self.update_file_execution_status()
             self.machine_connector.resume_machine()
 
-        elif serial_command == constants.GRBL_RESET_ZERO:
+        else:
+            self.machine_connector.add_to_serial_write_queue(constants.REAL_TIME_COMMANDS,
+                                                             constants.HIGH_PRIORITY_COMMAND,
+                                                             command)
+
+        # convert to json data
+        res = self.json_parse.parse_serial_command_to_json(command)
+        self.send_to_interface_console_output(constants.SERIAL_COMMAND_DATA_TYPE,
+                                              constants.HIGH_PRIORITY_COMMAND,
+                                              res)
+
+    # handle normal commands
+    def handle_normal_commands(self, command):
+        # received a homing command
+        if command == constants.GRBL_COMMAND_HOMING:
+            self.machine_connector.homing_machine()
+            self.reset_the_core_system()
+
+        # received a rest zero command
+        elif command == constants.GRBL_COMMAND_RESET_ZERO:
             self.machine_connector.reset_zero()
 
-        # rest of commands
-        # add them to serial write queue
+        # received an unlock command
+        elif command == constants.GRBL_COMMAND_UNLOCK:
+            self.machine_connector.unlock_machine()
+            self.reset_the_core_system()
+
+        # received a soft reset command
+        elif command == constants.GRBL_COMMAND_SOFT_RESET:
+            self.machine_connector.stop_machine()
+            self.reset_the_core_system()
+
+        # rest of commands (jogging)
         else:
-            self.machine_connector.add_to_serial_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                             serial_command)
+            self.machine_connector.add_to_serial_write_queue(
+                constants.NORMAL_COMMAND_DATA_TYPE, constants.MIDDLE_PRIORITY_COMMAND, command)
 
-    # handle commands sent from user related to file management system
-    def handle_file_management_commands(self, data):
-        # remove file prefix from data
-        data = data.removeprefix(constants.FILE_PREFIX)
+        # convert to json data
+        res = self.json_parse.parse_serial_command_to_json(command)
+        self.send_to_interface_console_output(constants.NORMAL_COMMAND_DATA_TYPE,
+                                              constants.MIDDLE_PRIORITY_COMMAND,
+                                              res)
 
-        # handle uploading file
-        if constants.FILENAME_PREFIX in data:
-            self.handle_uploaded_file(data)
-        # handle open file
-        elif constants.OPEN_FILE_PREFIX in data:
-            self.handle_open_file(data)
+    # handle commands user want to send to serial
 
-        # handle start file
-        elif constants.START_FILE_PREFIX in data:
-            self.handle_start_file()
+    def handle_serial_commands(self, type, command):
+        if command in constants.REAL_TIME_COMMANDS:
+            self.handle_real_time_commands(command)
+        # rest of commands
+        # add them to serial write and websocket queues
+        else:
+            self.send_to_machine_serial(type,
+                                        constants.MIDDLE_PRIORITY_COMMAND,
+                                        command)
+            # convert to json data
+            res = self.json_parse.parse_serial_command_to_json(command)
+            self.send_to_interface_console_output(constants.SERIAL_COMMAND_DATA_TYPE,
+                                                  constants.MIDDLE_PRIORITY_COMMAND,
+                                                  res)
 
-        elif constants.CLOSE_FILE_PREFIX in data:
-            self.handle_close_file()
+    def handle_rest_api_calls(self):
+        if not self.fastapi_server_shared_data.fastapi_read_queue.empty():
+            type, data = self.fastapi_server_shared_data.fastapi_read_queue.get()
+            self.analyze_fastapi_requests(type, data)
 
-        # handle deleting file
-        elif constants.DELETE_FILE_PREFIX in data:
-            self.handle_delete_file(data)
+    def analyze_fastapi_requests(self, type, data):
+        if type == constants.FILE_DATA_TYPE:
+            self.handle_file_management_requests(data)
 
-    def handle_uploaded_file(self, data):
-        # Process the data line by line using a generator
-        data_generator = (line for line in data.split('\n'))
+    # handle requests sent from user related to file management system
+    def handle_file_management_requests(self, data):
+        try:
+            process = data.get("process")
 
-        # Extract the file name by removing the FILENAME_PREFIX
-        filename = next(data_generator).removeprefix(constants.FILENAME_PREFIX)
+            # handle uploading file
+            if constants.UPLOAD_FILE_PROCESS == process:
+                file = data.get("file")
+                content = data.get("content")
+                self.handle_upload_file(file, content)
 
-        # Extract the G-code data (excluding the first line)
-        gcode_data = '\n'.join(data_generator)
+            # handle open file
+            elif constants.OPEN_FILE_PROCESS == process:
+                file = data.get("file")
+                self.handle_open_file(file)
 
+            # handle start file
+            elif constants.START_FILE_PROCESS == process:
+                self.handle_start_file()
+
+            # handle rename file
+            elif constants.RENAME_FILE_PROCESS == process:
+                old_filename = data.get("old_filename")
+                new_filename = data.get("new_filename")
+                self.handle_rename_file(old_filename, new_filename)
+
+            # handle deleting file
+            elif constants.DELETE_FILE_PROCESS == process:
+                file = data.get("file")
+                self.handle_delete_file(file)
+
+            # handle listing files
+            elif constants.LIST_FILES_PROCESS == process:
+                self.handle_files_list()
+
+            # handle check opened file
+            elif constants.CHECK_FILE_PROCESS == process:
+                self.handle_check_opened_file()
+
+        # incase of any error in the system
+        except Exception as error:
+            response = self.fastapi_file_manager_response(
+                type=constants.FILE_DATA_TYPE,
+                process=process,
+                message=error,
+                file='',
+                files_list='',
+                success=False
+            )
+
+            self.fastapi_server_shared_data.fastapi_write_queue.put(response)
+
+    def handle_upload_file(self, file, content):
         # Create a new file with the same name of the file uploaded
-        self.gcode_file_manager.write_gcode_file(gcode_data, filename)
-
-        # Send log message to the user
-        log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-            self.common_methods.log_message(constants.FILE_UPLOAD_MESSAGE +
-                                            constants.NEW_LINE)
-
-        self.websocket_server.add_to_websocket_write_queue(
-            constants.MIDDLE_PRIORITY_COMMAND, log_entry)
+        self.gcode_file_manager.write_gcode_file(file, content)
 
     # open selected file by user
-    def handle_open_file(self, data):
-        filename = data.removeprefix(constants.OPEN_FILE_PREFIX)
-        self.gcode_file_manager.open_file(filename)
 
-        # send the opened file name to websocket
-        self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                           constants.FRONTEND_FILE_OPENED_STATUS + filename)
+    def handle_open_file(self, file):
+        self.gcode_file_manager.open_file(file)
+        response = self.fastapi_file_manager_response(
+            type=constants.FILE_DATA_TYPE,
+            process=constants.OPEN_FILE_PROCESS,
+            message=constants.OPEN_FILE_MESSAGE,
+            file=file,
+            files_list=self.gcode_file_manager.get_files_list(),
+            success=True
+        )
 
-        # send log message to user
-        log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-            self.common_methods.log_message(
-                constants.FILE_OPEN_MESSAGE + constants.NEW_LINE)
-
-        self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                           log_entry)
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
 
     # start executing the gcode commands inside the opened file
     def handle_start_file(self):
@@ -196,13 +271,6 @@ class ServerCore:
         if opened_file is not None:
             # reopen in case of restarting the file again
             self.gcode_file_manager.open_file(opened_file)
-            # send log message to user
-            log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-                self.common_methods.log_message(
-                    constants.FILE_START_MESSAGE + constants.NEW_LINE)
-            self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                               log_entry)
-
             # change the flags to true while executing a file
             self._is_file_execute_process = True
             self._is_file_executing = True
@@ -210,118 +278,117 @@ class ServerCore:
             # when start executing file reset the counter
             self.machine_connector.reset_counter()
 
+            # get opened file
+            response = self.fastapi_file_manager_response(
+                type=constants.FILE_DATA_TYPE,
+                process=constants.START_FILE_PROCESS,
+                message=constants.START_FILE_MESSAGE,
+                file=opened_file,
+                files_list=self.gcode_file_manager.get_files_list(),
+                success=True
+            )
+
         else:
             print('There is no file open in the system')
+            # get opened file
+            response = self.fastapi_file_manager_response(
+                type=constants.FILE_DATA_TYPE,
+                process=constants.START_FILE_PROCESS,
+                message=constants.START_FILE_ERROR,
+                file='',
+                files_list=self.gcode_file_manager.get_files_list(),
+                success=False
+            )
 
-            # send log message to user
-            log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-                self.common_methods.log_message(
-                    constants.FILE_START_ERROR + constants.NEW_LINE)
-            self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                               log_entry)
-
-            # change the flag to false if there is no file opened
-            self._is_file_execute_process = False
-            self._is_file_executing = False
-
-    # close the opened file
-    def handle_close_file(self):
-        filename = self.gcode_file_manager.get_open_filename()
-        if filename:
-            # close the file
-            self.gcode_file_manager.close_file()
-
-            # send the closed file name to frontend
-            self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                               constants.FRONTEND_FILE_CLOSED_STATUS + filename)
-
-            # reset the file execution flags
-            self._is_file_execute_process = False
-            self._is_file_executing = False
-
-            # send log message to user
-            log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-                self.common_methods.log_message(
-                    constants.FILE_CLOSE_MESSAGE + constants.NEW_LINE)
-            self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                               log_entry)
-
-        else:
-            print('file not found in the system')
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
 
     # delete specific file base on its name
-    def handle_delete_file(self, data):
-        filename = data.removeprefix(constants.DELETE_FILE_PREFIX)
 
-        # remove the open file name from Frontend(user-interface)
-        self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                           constants.FRONTEND_FILE_CLOSED_STATUS)
-
+    def handle_delete_file(self, file):
         # delete the file from the system
-        self.gcode_file_manager.delete_file(filename)
+        self.gcode_file_manager.delete_file(file)
 
-        # send log message to user
-        log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-            self.common_methods.log_message(constants.FILE_DELETE_MESSAGE +
-                                            constants.NEW_LINE)
-        self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                           log_entry)
+        response = self.fastapi_file_manager_response(
+            type=constants.FILE_DATA_TYPE,
+            process=constants.DELETE_FILE_PROCESS,
+            message=constants.DELETE_FILE_MESSAGE,
+            file=file,
+            files_list=self.gcode_file_manager.get_files_list(),
+            success=True
+        )
+
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
+
+    def handle_rename_file(self, old_filename, new_filename):
+        self.gcode_file_manager.rename_file(old_filename, new_filename)
+
+        response = self.fastapi_file_manager_response(
+            type=constants.FILE_DATA_TYPE,
+            process=constants.RENAME_FILE_PROCESS,
+            message=constants.RENAME_FILE_MESSAGE,
+            file=new_filename,
+            files_list=self.gcode_file_manager.get_files_list(),
+            success=True
+        )
+
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
+
+    def handle_files_list(self):
+        response = self.fastapi_file_manager_response(
+            type=constants.FILE_DATA_TYPE,
+            process=constants.LIST_FILES_PROCESS,
+            message='',
+            file='',
+            files_list=self.gcode_file_manager.get_files_list(),
+            success=True
+        )
+
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
+
+    def handle_check_opened_file(self):
+        response = self.fastapi_file_manager_response(
+            type=constants.FILE_DATA_TYPE,
+            process=constants.CHECK_FILE_PROCESS,
+            message='',
+            file=self.gcode_file_manager.get_open_filename(),
+            files_list=self.gcode_file_manager.get_files_list(),
+            success=True
+        )
+
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
+
+    def fastapi_file_manager_response(self, type, process, message, file, files_list, success):
+        return {
+            'type': type,
+            'data': {
+                'process': process,
+                'message': message,
+                'file': file,
+                'filesList': files_list,
+                'success': success
+            }
+        }
 
     def handle_incoming_machine_data(self):
         # The serial read queue is not empty
-        if not self.machine_connector_data.serial_read_queue.empty():
-            data = self.machine_connector_data.serial_read_queue.get()
+        if not self.machine_connector_shared_data.serial_read_queue.empty():
+            type, data = self.machine_connector_shared_data.serial_read_queue.get()
 
-            # check if there is data to process
-            if data:
-                # stop executing the rest of the file in case of an error
-                # and clear the serial write queue
-                if constants.GRBL_ANSWER_ERROR in data:
-                    self.machine_connector.stop_machine()
-                    self.reset_the_core_system()
+            # initial json data
+            res = json.dumps({})
+            if type == constants.MACHINE_STATUS_DATA_TYPE:
+                res = self.json_parse.parse_grbl_status_to_json(data)
 
-                # show log message
-                log_entry = constants.FRONTEND_CONSOLE_PREFIX + \
-                    self.common_methods.log_message(data) + constants.NEW_LINE
+            elif type == constants.SERIAL_COMMAND_DATA_TYPE:
+                res = self.json_parse.parse_serial_command_to_json(data)
 
-                self.websocket_server.add_to_websocket_write_queue(
-                    constants.MIDDLE_PRIORITY_COMMAND,
-                    log_entry)
+            elif type == constants.MACHINE_CONNECTION_DATA_TYPE:
+                res = self.json_parse.parse_connection_status_to_json(data)
 
-    def handle_files_listing(self):
-        # Refresh every specific time interval
-        if (time.time() - self.current_refresh_file_time >
-                constants.DIRECTORY_LISTING_REFRESH_INTERVAL):
-
-            # always check if there is an open file
-            # in case the user decided to refresh the browser
-            self.handle_opened_filename()
-
-            self.current_refresh_file_time = time.time()
-            gcode_files = self.gcode_file_manager.get_file_listing()
-
-            # start the list with the prefix for the file list
-            file_list = constants.FRONTEND_LIST_FILE_PREFIX
-            if len(gcode_files) > 0:
-                for index, file in enumerate(gcode_files):
-                    # don't add the last new line in the list
-                    if index == len(gcode_files) - 1:
-                        file_list += file
-                    else:
-                        file_list += file + constants.NEW_LINE
-
-                # Add the file_list data to the websocket_write_queue to be send to user
-                self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                                   file_list)
-
-    # incase of refreshing the browser, show the user which file is already open
-    def handle_opened_filename(self):
-        # check if there is already an opened file in the system
-        opened_filename = self.gcode_file_manager.get_open_filename()
-        if opened_filename is not None:
-            # send the name to websocket
-            self.websocket_server.add_to_websocket_write_queue(constants.MIDDLE_PRIORITY_COMMAND,
-                                                               constants.FRONTEND_FILE_OPENED_STATUS + opened_filename)
+            self.send_to_interface_console_output(
+                type,
+                constants.MIDDLE_PRIORITY_COMMAND,
+                res)
 
     def handle_file_execution(self):
         '''
@@ -347,8 +414,19 @@ class ServerCore:
             gcode_command = self.common_methods.filtered_commands(line)
             # valid gcode command
             if gcode_command:
-                self.machine_connector.add_to_serial_write_queue(constants.LOW_PRIORITY_COMMAND,
-                                                                 gcode_command)
+                self.send_to_machine_serial(constants.SERIAL_COMMAND_DATA_TYPE,
+                                            constants.LOW_PRIORITY_COMMAND,
+                                            gcode_command)
+
+                # Add the command that is sent to machine to websocket, so that it will be shown to user being executed
+                line_index = self.gcode_file_manager.get_line_index()
+                total_lines = self.gcode_file_manager.get_total_lines()
+                res = self.json_parse.parse_file_command_to_json(
+                    gcode_command, line_index, total_lines)
+
+                self.send_to_interface_console_output(constants.FILE_DATA_TYPE,
+                                                      constants.MIDDLE_PRIORITY_COMMAND,
+                                                      res)
 
             # not a valid gcode command repeat the process to get the next line
             else:
@@ -360,6 +438,15 @@ class ServerCore:
             self._is_file_execute_process = False
             self._is_file_executing = False
             self.machine_connector.reset_counter()
+
+    def send_to_machine_serial(self, type, priority, data):
+        self.machine_connector.add_to_serial_write_queue(type,
+                                                         priority,
+                                                         data)
+
+    def send_to_interface_console_output(self, type, priority, data):
+        self.websocket_connector.add_to_websocket_write_queue(
+            type, priority, data)
 
     def update_file_execution_status(self):
         if self._is_file_execute_process:
