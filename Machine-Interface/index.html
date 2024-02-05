@@ -1,182 +1,21 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <title><%= productName %></title>
 
-<head>
+    <meta charset="utf-8">
+    <meta name="description" content="<%= productDescription %>">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover<% } %>">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" >
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" ></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.min.js" integrity="sha384-Atwg2Pkwv9vp0ygtn1JAojH0nYbwNJLPhwyoVbhoPwBhjQPR5VtM2+xf0Uwh9KtT" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
-    <link href="main.css" rel="stylesheet" >
-    <script src="main.js" ></script>
-
-</head>
-
-<div class="container-left p-2 w-100" id="fileContainer">     
-
-    <div class="row">
-
-        <div class="col">
-            
-            <input class="form-control" disabled type="file" id="fileInput" accept=".cnc,.nc,.gcode">
-            
-        </div>
-
-        <div class="col">
-
-            <button type="button" class="btn btn-primary " disabled id="uploadButton">Upload File</button>
-
-        </div>
-        
-    </div>
-
-</div>
-
-
-    <div class="container-left p-2 w-51" id="consoleContainer">     
-
-        <div class="row">
-
-            <div class="col">
-
-            <div class="container-right mb-3">
-
-
-                <div class="input-group">
-                    <div class="input-group-prepend">
-                    </div>
-                        <input type="text" class="form-control" id="xyJogSize" placeholder="XY Jog Size mm">
-                        <input type="text" class="form-control" id="xyJogFeed" placeholder="XY Jog Feed mm/min">                      
-                  </div>
-
-            </div>
-
-            <div class="container-right mb-3">
-
-                <div class="input-group">
-                    <div class="input-group-prepend">
-                      
-                    </div>
-                        <input type="text" class="form-control" id="zJogSize" placeholder="Z Jog Size mm">  
-                        <input type="text" class="form-control" id="zJogFeed" placeholder="Z Jog Feed mm/min">
-                  </div>
-
-            </div>
-
-            <div class = "container-right mb-2">
-                <button type="button" class="btn btn-primary " disabled id="forwardLeftButton">↖</button>
-                <button type="button" class="btn btn-primary " disabled id="forwardButton">↑</button>
-                <button type="button" class="btn btn-primary " disabled id="forwardRightButton">↗</button>
-                <button type="button" class="btn btn-primary " disabled id="upButton">↑</button>
-                <button type="button" class="btn btn-primary " disabled id="unlockButton">Unlock</button>
-            </div>
-
-            <div class = "container-right mb-2">
-                <button type="button" class="btn btn-primary " disabled id="leftButton">←</button>
-                <button type="button" class="btn btn-primary " disabled >- </button>
-                <button type="button" class="btn btn-primary " disabled id="rightButton">→</button>
-                <button type="button" class="btn btn-primary " disabled id="downButton">↓</button>
-                <button type="button" class="btn btn-primary " disabled id="homingButton">Homing</button>
-            </div>
-
-            <div class = "container-right mb-2">
-                <button type="button" class="btn btn-primary " disabled id="backwardLeftButton">↙</button>
-                <button type="button" class="btn btn-primary " disabled id="backwardButton">↓</button>
-                <button type="button" class="btn btn-primary " disabled id="backwardRightButton">↘</button>
-                <button type="button" class="btn btn-primary " disabled id="zeroButton">Reset Zero</button>
-                <button type="button" class="btn btn-primary " disabled id="returnZeroButton">Return to YX Zero</button>
-            </div>
-
-            <div class="container-right mb-3">
-
-                
-            <div class="container-right mt-3">
-
-                <button type="button" class="btn btn-warning" disabled id="mxButton">
-                   <span class="badge" style="background-color: #000000;">mX</span> 0.00
-                </button>
-                <button type="button" class="btn btn-warning" disabled id="myButton">
-                    <span class="badge" style="background-color: #000000;">mY</span> 0.00
-                </button>
-                <button type="button" class="btn btn-warning" disabled id="mzButton">
-                    <span class="badge" style="background-color: #000000;">mZ</span> 0.00
-                </button>
-
-
-                    <button type="button" class="btn btn-warning" disabled id="wxButton">
-                        <span class="badge" style="background-color: #000000;">wX</span> 0.00
-                     </button>
-                     <button type="button" class="btn btn-warning" disabled id="wyButton">
-                         <span class="badge" style="background-color: #000000;">wY</span> 0.00
-                     </button>
-                     <button type="button" class="btn btn-warning" disabled id="wzButton">
-                         <span class="badge" style="background-color: #000000;">wZ</span> 0.00
-                     </button>
-     
-                     <button type="button" class="btn btn-secondary " disabled id="statusButton">
-                         <span class="badge" style="background-color: #000000;">Status:</span>
-                         </button>
-
-            </div>
-
-            <div class="container-right mt-3">
-                
-                <div class="input-group mb-3 mt-3">
-                    <input type="text" class="form-control" id="commandLine" placeholder="Command Line" aria-describedby="basic-addon2">
-                    <div class="input-group-append">
-                      <button class="btn btn-primary " type="button" id="sendButton">Send</button>
-                    </div>
-                  </div>
-
-                    
-            </div>
-            </div>
-
-                <label for="consoleTextArea">Console output:</label>
-                <textarea readonly class="form-control" id="consoleTextArea" rows="12"></textarea>
-            
-            </div>
-
-
-            <div class="col">
-
-                <div class="container-right mt-3 mb-5">
-                <div class ="h-100 p-3" style="background-color: #eee;">
-                    
-                    <label id="currentOpenFileLabel">No file is currently open.</label><br><br><br><br><br>
-                    <p>File preview here.</p>
-                    <br><br>
-                </div>
-                </div>  
-
-                <div class="container-right mb-1 mt-4">
-                    <button type="button" class="btn btn-primary " disabled id="startButton">Start</button>
-                    <button type="button" class="btn btn-primary " disabled id="pauseButton">Pause</button>
-                    <button type="button" class="btn btn-primary " disabled id="stopButton">Stop</button>
-                    <button type="button" class="btn btn-primary " disabled id="deleteButton">Delete</button>
-                    <button type="button" class="btn btn-primary " disabled id="openButton">Open</button>
-                    <button type="button" class="btn btn-primary " disabled id="closeButton">Close</button>
-
-                </div>
-
-
-
-                <div class= "container-right mt-3">
-                    
-                    <label for="fileSelectionList">List of files on the server.</label>
-                    <label for="fileSelectionList" id='selectedFileLabel'>Selected file:</label>
-                    <select class="form-select" id="fileSelectionList" size="15">
-                    <!--<textarea readonly class="form-control" id="fileListTextArea" rows="20"></textarea>-->
-                    </select>
-
-                </div>
-                
-            </div>
-            
-        </div>
-
-    </div>
-
-</body>
-
+    <link rel="icon" type="image/png" sizes="128x128" href="icons/favicon-128x128.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="icons/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <link rel="icon" type="image/ico" href="favicon.ico">
+  </head>
+  <body>
+    <!-- quasar:entry-point -->
+  </body>
 </html>

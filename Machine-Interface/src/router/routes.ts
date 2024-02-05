@@ -1,0 +1,34 @@
+import { RouteRecordRaw } from 'vue-router';
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    component: () => import('layouts/HomeLayout.vue'),
+    children: [
+      {
+        path: 'files',
+        name: 'files',
+        component: () => import('pages/FilesManager.vue'),
+      },
+      {
+        path: 'controls',
+        name: 'controls',
+        component: () => import('pages/MachineControls.vue'),
+      },
+      {
+        path: 'console',
+        name: 'console',
+        component: () => import('pages/MachineConsole.vue'),
+      },
+    ],
+  },
+
+  // Always leave this as last one,
+  // but you can also remove it
+  {
+    path: '/:catchAll(.*)*',
+    component: () => import('pages/ErrorNotFound.vue'),
+  },
+];
+
+export default routes;
