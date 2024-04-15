@@ -1,7 +1,6 @@
 <template>
   <!-- Lock Button -->
   <q-btn
-    rounded
     :icon="isXYLocked ? 'lock_open' : 'lock'"
     text-color="black"
     class="bg-white q-pa-xs lock-style"
@@ -11,6 +10,7 @@
     size="md"
     :disable="isDisabled"
     @click="jogControlsStore.changeXYLockStatus()"
+    style="border-radius: 10px"
   >
     <q-tooltip class="bg-black">{{
       isXYLocked ? 'Unlock XY' : 'Lock XY'

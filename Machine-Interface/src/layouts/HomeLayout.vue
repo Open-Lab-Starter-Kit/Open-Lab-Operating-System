@@ -1,28 +1,30 @@
 <template>
   <q-layout view="lHr lpR lFr">
-    <q-header class="bg-white">
-      <q-toolbar>
-        <q-btn
-          v-if="isMobile"
-          flat
-          @click="leftDrawer = !leftDrawer"
-          round
-          dense
-          icon="menu"
-          color="black"
-        />
-        <q-toolbar-title></q-toolbar-title>
-        <q-btn
-          v-if="isMobile"
-          flat
-          @click="rightDrawer = !rightDrawer"
-          round
-          dense
-          icon="menu"
-          color="black"
-        />
-      </q-toolbar>
-    </q-header>
+    <div v-if="isMobile">
+      <q-header class="bg-white">
+        <q-toolbar>
+          <q-btn
+            v-if="isMobile"
+            flat
+            @click="leftDrawer = !leftDrawer"
+            round
+            dense
+            icon="menu"
+            color="black"
+          />
+          <q-toolbar-title></q-toolbar-title>
+          <q-btn
+            v-if="isMobile"
+            flat
+            @click="rightDrawer = !rightDrawer"
+            round
+            dense
+            icon="menu"
+            color="black"
+          />
+        </q-toolbar>
+      </q-header>
+    </div>
 
     <q-drawer
       v-model="leftDrawer"
@@ -56,6 +58,7 @@
 
     <q-page-container>
       <router-view />
+      <machine-debugger />
     </q-page-container>
   </q-layout>
 </template>
@@ -66,6 +69,7 @@ import { ref } from 'vue';
 import Tabs from '../components/TabsComponent.vue';
 import MachineLogo from '../components/MachineLogoComponent.vue';
 import MainControls from 'src/components/MainControlsComponent/MainControlsComponent.vue';
+import MachineDebugger from 'src/components/MachineDebugger.vue';
 
 const $q = useQuasar();
 // drawer events

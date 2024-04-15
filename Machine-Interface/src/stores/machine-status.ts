@@ -3,30 +3,30 @@ import { Constants } from 'src/constants';
 
 interface StatusData {
   type: string;
-  state?: string | null;
+  state?: string;
   machine_position: {
-    x: number | null;
-    y: number | null;
-    z: number | null;
+    x: number;
+    y: number;
+    z: number;
   };
 
   work_coordinate_offset: {
-    x: number | null;
-    y: number | null;
-    z: number | null;
+    x: number;
+    y: number;
+    z: number;
   };
   buffer_state: {
-    commands_queued: number | null;
-    buffer_length: number | null;
+    commands_queued: number;
+    buffer_length: number;
   };
   feed_and_speed: {
-    feed_rate: number | null;
-    spindle_speed: number | null;
+    feed_rate: number;
+    spindle_speed: number;
   };
   overrides: {
-    feed: number | null;
-    rapids: number | null;
-    spindle: number | null;
+    feed: number;
+    rapids: number;
+    spindle: number;
   };
 }
 
@@ -149,6 +149,14 @@ export const useMachineStatusStore = defineStore('status', {
       this.job_position.x = 0;
       this.status.work_coordinate_offset.y = this.machinePosition.y;
       this.job_position.y = 0;
+    },
+    resetXYZJobPosition() {
+      this.status.work_coordinate_offset.x = this.machinePosition.x;
+      this.job_position.x = 0;
+      this.status.work_coordinate_offset.y = this.machinePosition.y;
+      this.job_position.y = 0;
+      this.status.work_coordinate_offset.z = this.machinePosition.z;
+      this.job_position.z = 0;
     },
     setXJobPosition(value: number) {
       this.status.work_coordinate_offset.x = this.machinePosition.x

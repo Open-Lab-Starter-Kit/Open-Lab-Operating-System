@@ -1,6 +1,6 @@
 <template>
   <div
-    class="column col-5 col-md-5 col-sm-12 col-xs-12 q-gutter-sm items-center q-pa-md"
+    class="column col-7 col-md-7 col-sm-12 col-xs-12 q-gutter-sm items-center q-py-md"
   >
     <div class="row col q-px-md q-gutter-x-md">
       <q-btn
@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Constants } from 'src/constants';
-import { executeNormalGCommands } from 'src/services/controls.service';
+import { executeNormalGCommands } from 'src/services/execute.commands.service';
 import { useJogControlsStore } from 'src/stores/jog-controls';
 
 defineProps<{
@@ -201,3 +201,4 @@ const XYJog315 = () => {
   }
 }
 </style>
+src/services/execute.commands.service

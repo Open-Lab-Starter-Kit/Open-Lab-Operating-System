@@ -2,15 +2,19 @@
   <div class="column col q-gutter-y-sm">
     <div class="row col items-center justify-around">
       <span class="axis-title">XY</span>
-      <span>{{ xyJogSpeed }} mm/s</span>
+      <span class="text-bold">{{ xyJogSpeed }} mm/s</span>
       <q-btn
         outline
         round
-        icon="edit"
+        :icon="isCustomXYSpeedValue ? 'close' : 'edit'"
         color="light-grey-4"
         size="md"
         :disable="isDisabled"
-        @click="openXYCustomSpeedDialog"
+        @click="
+          isCustomXYSpeedValue
+            ? clearXYSpeedCustom()
+            : openXYCustomSpeedDialog()
+        "
       />
     </div>
     <q-btn-group flat push rounded class="col flex-center full-width">
@@ -21,7 +25,7 @@
           { 'bg-white': xyChosenSpeed === 'slow' },
           'group-button-width',
         ]"
-        :disable="isButtonsGroupDisabled()"
+        :disable="isDisabled"
         @click="setXYSpeed"
       />
       <q-btn
@@ -31,7 +35,7 @@
           { 'bg-white': xyChosenSpeed === 'normal' },
           'group-button-width',
         ]"
-        :disable="isButtonsGroupDisabled()"
+        :disable="isDisabled"
         @click="setXYSpeed"
       />
       <q-btn
@@ -41,7 +45,7 @@
           { 'bg-white': xyChosenSpeed === 'fast' },
           'group-button-width',
         ]"
-        :disable="isButtonsGroupDisabled()"
+        :disable="isDisabled"
         @click="setXYSpeed"
       />
     </q-btn-group>
@@ -62,7 +66,7 @@ import { useJogControlsStore } from 'src/stores/jog-controls';
 import CustomDialog from './CustomDialog.vue';
 import { ref } from 'vue';
 
-const props = defineProps<{
+defineProps<{
   isDisabled: boolean;
 }>();
 
@@ -72,11 +76,6 @@ const { xyJogSpeed, xyChosenSpeed, isCustomXYSpeedValue } = storeToRefs(store);
 
 const dialogVisible = ref(false);
 
-const isButtonsGroupDisabled = () => {
-  if (props.isDisabled || isCustomXYSpeedValue.value) return true;
-  return false;
-};
-
 const setXYSpeed = (event: Event) => {
   // Type assertion to HTMLElement or null
   const targetElement = event.target as HTMLElement | null;
@@ -84,6 +83,7 @@ const setXYSpeed = (event: Event) => {
   // Check if targetElement is not null and has textContent property
   if (targetElement && targetElement.textContent) {
     store.setXYSpeedChoice(targetElement.textContent);
+    isCustomXYSpeedValue.value = false;
   }
 };
 
@@ -93,12 +93,14 @@ const openXYCustomSpeedDialog = () => {
 
 const setXYCustomSpeed = (newValue: number) => {
   xyJogSpeed.value = newValue;
+  xyChosenSpeed.value = '';
   isCustomXYSpeedValue.value = true;
 };
 
 const clearXYSpeedCustom = () => {
   // reset to its init value
   xyJogSpeed.value = 10;
+  xyChosenSpeed.value = 'slow';
   // Re-enable the slider
   isCustomXYSpeedValue.value = false;
 };

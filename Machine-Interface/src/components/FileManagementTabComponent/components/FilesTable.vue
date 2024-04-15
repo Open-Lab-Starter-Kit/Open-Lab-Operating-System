@@ -1,6 +1,6 @@
 <template>
   <q-table
-    class="header-table q-mb-lg"
+    class="header-table q-mb-lg bg-grey-4"
     flat
     row-key="name"
     bordered
@@ -8,6 +8,12 @@
     :columns="columns"
     :dense="$q.screen.lt.md"
     :filter="filter"
+    virtual-scroll
+    :virtual-scroll-item-size="10"
+    :virtual-scroll-sticky-size-start="10"
+    :rows-per-page-options="[0]"
+    hide-bottom
+    style="max-height: 50vh"
   >
     <template v-slot:top-right>
       <q-input dense debounce="300" v-model="filter" placeholder="Search">
@@ -21,7 +27,7 @@
         :props="props"
         @click="onRowClick(props.row)"
         :class="[
-          { 'bg-brown-1': selectedFilename === props.row.file },
+          { 'bg-blue-grey-2': selectedFilename === props.row.file },
           'cursor-pointer',
         ]"
       >
@@ -90,7 +96,7 @@ const filter = ref('');
 const store = useFileManagementStore();
 
 const { filesList, selectedFilename } = storeToRefs(store);
-const { selectFile, updateFilesList } = store;
+const { selectFile } = store;
 
 const onRowClick = (row: TableRow) => {
   selectFile(row.file);
@@ -102,37 +108,48 @@ const onDeleteFile = (row: TableRow) => {
     message: `Would you like to delete "${row.file}"?`,
     ok: {
       label: 'Yes',
-      color: 'positive',
+      flat: true,
     },
     cancel: {
       label: 'No',
-      color: 'negative',
+      flat: true,
     },
   }).onOk(() => {
     store.deleteFile(row.file);
   });
 };
-
-// update files list on first mount
-updateFilesList();
 </script>
 
 <style lang="scss">
 .header-table {
-  .q-table__top,
-  .q-table__bottom,
+  thead tr:first-child th {
+    border-bottom: solid 1px;
+  }
   thead tr:first-child th {
     /* bg color is important for th; just specify one */
     background-color: #e0e0e0 !important;
-    border: #e0e0e0 solid 1px;
   }
   thead tr:first-child th {
-    font-weight: 500;
-    font-size: 1rem;
+    font-weight: bold;
+    font-size: 1.25rem;
   }
 }
 
 .row-text-size {
   font-size: 1rem;
+}
+thead tr:first-child th {
+  top: 0;
+}
+.q-table__top,
+thead tr th {
+  position: sticky;
+  z-index: 1;
+}
+
+/* prevent scrolling behind sticky top row on focus */
+tbody {
+  /* height of all previous header rows */
+  scroll-margin-top: 48px;
 }
 </style>

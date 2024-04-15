@@ -1,9 +1,5 @@
 <template>
   <div class="column q-my-sm q-pa-md bg-white full-width job-box">
-    <div class="row items-center justify-between">
-      <p>Job</p>
-      <p>{{ openedFilename }}</p>
-    </div>
     <div class="row justify-between">
       <p>Feed Rate</p>
       <p>{{ feedRate }} mm/s</p>
@@ -13,6 +9,7 @@
       <p>{{ feedAndSpeed?.spindle_speed }}%</p>
     </div>
   </div>
+  <p class="text-center text-h5 text-bold">{{ openedFilename }}</p>
 </template>
 
 <script setup lang="ts">
@@ -29,7 +26,7 @@ const { feedAndSpeed } = storeToRefs(machineStatusStore);
 
 const feedRate = computed(() => {
   if (feedAndSpeed.value?.feed_rate)
-    return feedAndSpeed.value.feed_rate.toFixed(2);
+    return (feedAndSpeed.value.feed_rate / 60).toFixed(2);
   else return 0;
 });
 </script>

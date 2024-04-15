@@ -2,20 +2,18 @@
   <q-list class="column fit full-width justify-center">
     <template v-for="(navItem, index) in navList" :key="index">
       <q-item
-        clickable
-        :active="isActive(navItem)"
-        @click="onClick(navItem)"
+        :clickable="!isFileManagerDisabled || navItem.label !== 'File Manager'"
+        :active="tabsStore.isActiveTab(navItem)"
+        @click="tabsStore.changeTab(navItem)"
         class="col-grow q-pa-sm"
         active-class="active-tab"
       >
-        <q-item-section class="column flex-center">
-          <!-- Conditionally show the notification circle -->
-          <q-icon
-            v-if="navItem.label === 'Console' && hasNotification"
-            name="lens"
-            color="red"
-            class="q-ml-xl"
-          ></q-icon>
+        <q-item-section
+          :class="{
+            'column flex-center text-center': true,
+            disabled: isFileManagerDisabled && navItem.label === 'File Manager',
+          }"
+        >
           <q-icon :name="navItem.icon" size="lg" />
           <p>{{ navItem.label }}</p>
         </q-item-section>
@@ -25,72 +23,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { NavItem, NavItems } from './models';
+import { useTabsStore } from 'src/stores/active-tab';
 import { storeToRefs } from 'pinia';
-import { useMessageOutputStore } from 'src/stores/message-output';
+import { useMachineStatusStore } from 'src/stores/machine-status';
+import { Constants } from 'src/constants';
+import { onMounted, ref, watch } from 'vue';
 
-const store = useMessageOutputStore();
-const { isError } = storeToRefs(store);
+const tabsStore = useTabsStore();
+const machineStore = useMachineStatusStore();
 
-const hasNotification = ref(false);
+const { navList } = storeToRefs(tabsStore);
+const { machineState } = storeToRefs(machineStore);
 
-// watch for changes in the isError flag
-watch(
-  () => isError.value,
-  (newIsError) => {
-    if (newIsError) hasNotification.value = true;
-    else hasNotification.value = false;
+const isFileManagerDisabled = ref(false);
+
+// Disable the file manager when the machine is running
+const checkIfFileManagerDisabled = (state: string) => {
+  if (state === Constants.RUN || state === Constants.HOLD) {
+    isFileManagerDisabled.value = true;
+  } else isFileManagerDisabled.value = false;
+};
+
+// Watch for changes in machineState
+watch(machineState, (newState) => {
+  if (newState) {
+    checkIfFileManagerDisabled(newState);
   }
-);
+});
 
-const navList: NavItems = {
-  files: {
-    icon: 'folder',
-    label: 'File Manager',
-    router: 'files',
-  },
-  controls: {
-    icon: 'tune',
-    label: 'Controls',
-    router: 'controls',
-  },
-  console: {
-    icon: 'code',
-    label: 'Console',
-    router: 'console',
-  },
-};
-
-const router = useRouter();
-
-// Reactive variable to track the active menu item
-const activeMenuItem = ref(navList.controls);
-
-// check the active item and navigate to it at first mount
-const isActive = (item: NavItem): boolean => {
-  if (activeMenuItem.value.label === item.label) {
-    router.push({ name: item.router });
-    return true;
+// check if the file is executing on mount
+onMounted(() => {
+  if (machineState.value) {
+    checkIfFileManagerDisabled(machineState.value);
   }
-  return false;
-};
-
-const onClick = (item: NavItem): void => {
-  activeMenuItem.value = item;
-
-  removeNotification(item.label);
-  // navigate to the right page
-  router.push({ name: item.router });
-};
-
-const removeNotification = (tabName: string) => {
-  // just the console tab has notification
-  if (tabName === 'Console' && hasNotification.value) {
-    hasNotification.value = false;
-  }
-};
+});
 </script>
 
 <style scoped>

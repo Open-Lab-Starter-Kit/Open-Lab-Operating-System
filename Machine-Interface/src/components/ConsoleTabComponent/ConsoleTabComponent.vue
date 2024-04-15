@@ -1,13 +1,13 @@
 <template>
-  <div class="q-px-md">
+  <div class="column col q-pa-md">
     <console-output />
     <serial-command-input />
-    <messages-output />
+    <debugger-button />
   </div>
 </template>
 
 <script setup lang="ts">
 import SerialCommandInput from './components/SerialCommandInput.vue';
 import ConsoleOutput from './components/ConsoleOutput.vue';
-import MessagesOutput from './components/MessagesOutput.vue';
+import DebuggerButton from './components/DebuggerButton.vue';
 </script>

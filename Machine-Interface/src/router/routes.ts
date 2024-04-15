@@ -20,6 +20,16 @@ const routes: RouteRecordRaw[] = [
         name: 'console',
         component: () => import('pages/MachineConsole.vue'),
       },
+      {
+        path: 'preview',
+        name: 'preview',
+        component: () => import('pages/GcodePreview.vue'),
+      },
+      {
+        path: 'generator',
+        name: 'generator',
+        component: () => import('pages/GcodeGenerator.vue'),
+      },
     ],
   },
 

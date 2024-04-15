@@ -1,5 +1,5 @@
 <template>
-  <div class="row col-4 items-center justify-between">
+  <div class="row col-4 items-center q-gutter-x-md">
     <span>Z</span>
 
     <q-slider
@@ -12,15 +12,19 @@
       thumb-size="25px"
       :disable="isSliderDisabled()"
     />
-    <q-btn
-      icon-right="edit"
-      :label="zJogStep"
-      rounded
-      outline
-      class="custom-btn"
-      @click="openZCustomStepDialog"
-      :disable="isDisabled"
-    />
+    <div class="row col-md col-sm-12 col-xs-12 flex-center q-gutter-x-sm">
+      <span class="text-h8 text-bold">{{ zJogStep }} mm</span>
+      <q-btn
+        :icon="isCustomZStepValue ? 'close' : 'edit'"
+        round
+        outline
+        class="custom-btn"
+        @click="
+          isCustomZStepValue ? clearZStepCustomValue() : openZCustomStepDialog()
+        "
+        :disable="isDisabled"
+      />
+    </div>
   </div>
   <!-- Dialog Component -->
   <custom-dialog
@@ -63,7 +67,7 @@ const setZStepCustomValue = (newValue: number) => {
 
 const clearZStepCustomValue = () => {
   // reset to its init value
-  zJogStep.value = 0.01;
+  zJogStep.value = 0.1;
   zSliderValue.value = 0;
   // Re-enable the slider
   isCustomZStepValue.value = false;

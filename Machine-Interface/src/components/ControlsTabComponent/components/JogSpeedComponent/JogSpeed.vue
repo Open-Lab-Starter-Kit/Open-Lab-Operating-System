@@ -3,7 +3,7 @@
     class="column col-md-3 col-sm-12 col-xs-12 q-pa-sm bg-grey-4 items-stretch justify-between rounded-borders"
     style="flex-grow: 1"
   >
-    <span style="font-size: 1rem">Jog speed (mm/s)</span>
+    <span class="text-bold" style="font-size: 1rem">Jog speed (mm/s)</span>
     <div class="column col-grow justify-center q-gutter-y-sm">
       <xy-jog-speed :is-disabled="machineState !== Constants.IDLE" />
       <z-jog-speed :is-disabled="machineState !== Constants.IDLE" />

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { Constants } from 'src/constants';
-import { executeRealTimeGCommands } from 'src/services/controls.service';
+import { executeRealTimeGCommands } from 'src/services/execute.commands.service';
 
 export const useOverrideSettingsStore = defineStore('overrideSettings', {
   state: () => ({

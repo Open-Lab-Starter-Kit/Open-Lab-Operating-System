@@ -1,5 +1,7 @@
 <template>
-  <div class="column col col-md col-sm-5 col-xs-5 items-center justify-evenly">
+  <div
+    class="column col-2 col-md-2 col-sm-5 col-xs-5 q-gutter-y-xl flex-center q-py-md"
+  >
     <q-btn
       label="Z"
       icon="arrow_drop_up"
@@ -26,7 +28,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Constants } from 'src/constants';
-import { executeNormalGCommands } from 'src/services/controls.service';
+import { executeNormalGCommands } from 'src/services/execute.commands.service';
 import { useJogControlsStore } from 'src/stores/jog-controls';
 
 defineProps<{
@@ -62,3 +64,4 @@ const ZJogDown = () => {
   }
 }
 </style>
+src/services/execute.commands.service

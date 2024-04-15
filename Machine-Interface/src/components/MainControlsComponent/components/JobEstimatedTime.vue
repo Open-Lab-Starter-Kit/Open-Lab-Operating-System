@@ -32,9 +32,8 @@
 import { storeToRefs } from 'pinia';
 import { useJobInfoStore } from 'src/stores/job-info';
 import { useMachineStatusStore } from 'src/stores/machine-status';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Constants } from 'src/constants';
-import { useFileManagementStore } from 'src/stores/file-management';
 
 const machineStatusStore = useMachineStatusStore();
 const { machineState } = storeToRefs(machineStatusStore);
@@ -42,54 +41,62 @@ const { machineState } = storeToRefs(machineStatusStore);
 const jobInfoStore = useJobInfoStore();
 const { jobProgress } = storeToRefs(jobInfoStore);
 
-const fileManagerStore = useFileManagementStore();
-const { isFileExecuting } = storeToRefs(fileManagerStore);
-
 const progressFileLabel = ref('');
-
-// Watch for changes in jobProgress and update the progress bar
-watch(
-  () => jobProgress.value,
-  () => {
-    updateJobProgress();
-  }
-);
-
-const progressColor = computed(() => {
-  // Determine the class based on machine state
-  if (isFileExecuting.value) {
-    switch (machineState.value) {
-      case Constants.IDLE:
-        return 'light-blue-3';
-      case Constants.RUN:
-        return 'light-green-4';
-      case Constants.ALARM:
-        return 'red-4';
-      case Constants.HOLD:
-        return 'yellow';
-      case Constants.DISCONNECTED:
-        return 'white';
-      default:
-        return 'primary';
-    }
-  } else {
-    return 'grey';
-  }
-});
+const progressColor = ref('');
 
 const updateJobProgress = () =>
   (progressFileLabel.value = (jobProgress.value * 100).toFixed(2) + '%');
 
 const formatTime = computed(() => {
-  const totalSeconds = jobInfoStore.jobTimer.totalTimeInSeconds;
+  const totalSeconds = jobInfoStore.jobTimer;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  const seconds = Math.floor(totalSeconds % 60);
 
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(
     2,
     '0'
   )}:${String(seconds).padStart(2, '0')}`;
+});
+
+const checkProgressBarColor = (state: string) => {
+  switch (state) {
+    case Constants.IDLE:
+      progressColor.value = 'light-blue-3';
+      break;
+    case Constants.RUN:
+      progressColor.value = 'light-green-4';
+      break;
+    case Constants.ALARM:
+      progressColor.value = 'red-4';
+      break;
+    case Constants.HOLD:
+      progressColor.value = 'yellow';
+      break;
+    case Constants.DISCONNECTED:
+      progressColor.value = 'white';
+      break;
+    default:
+      progressColor.value = 'primary';
+      break;
+  }
+};
+
+// Watch for changes in jobProgress and update the progress bar
+watch(jobProgress, () => {
+  updateJobProgress();
+});
+
+watch(machineState, (newState) => {
+  if (newState) {
+    checkProgressBarColor(newState);
+  }
+});
+
+onMounted(() => {
+  if (machineState.value) {
+    checkProgressBarColor(machineState.value);
+  }
 });
 </script>
 

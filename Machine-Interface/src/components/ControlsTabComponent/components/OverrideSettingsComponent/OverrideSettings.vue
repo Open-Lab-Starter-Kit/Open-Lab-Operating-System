@@ -1,8 +1,10 @@
 <template>
-  <span style="font-size: 1rem">Override Settings</span>
-  <div class="row q-gutter-y-sm full-width justify-around">
-    <feed-rate />
-    <laser-power />
+  <div class="column full-width bg-grey-4 q-gutter-sm rounded-borders">
+    <span class="text-bold" style="font-size: 1rem">Override Settings</span>
+    <div class="row q-gutter-sm full-width justify-around">
+      <feed-rate />
+      <laser-power />
+    </div>
   </div>
 </template>
 <script setup lang="ts">

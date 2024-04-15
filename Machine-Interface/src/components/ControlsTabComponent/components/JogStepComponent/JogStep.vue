@@ -1,8 +1,10 @@
 <template>
   <div
-    class="column col-md-6 col-sm-12 col-xs-12 q-pa-sm bg-grey-4 justify-between rounded-borders"
+    class="column col-md col-sm-12 col-xs-12 q-pa-sm bg-grey-4 justify-between rounded-borders"
   >
-    <span class="col-2" style="font-size: 1rem">Jog Step Size(mm)</span>
+    <span class="text-bold col-2" style="font-size: 1rem"
+      >Jog Step Size(mm)</span
+    >
     <div class="row justify-between col-1 metrics-box">
       <span>0.1</span>
       <span>1</span>
@@ -13,7 +15,7 @@
       <div class="row justify-center col-1 icon-box">
         <x-y-lock-button :is-disabled="machineState !== Constants.IDLE" />
       </div>
-      <div class="column col q-pb-sm">
+      <div class="column col q-pb-md">
         <x-step-slider :is-disabled="machineState !== Constants.IDLE" />
         <y-step-slider :is-disabled="machineState !== Constants.IDLE" />
         <z-step-slider :is-disabled="machineState !== Constants.IDLE" />
@@ -39,21 +41,21 @@ const { machineState } = storeToRefs(machineStatusStore);
 <style>
 .metrics-box {
   position: relative;
-  left: 12%;
+  left: 13%;
   max-width: 67%;
   font-weight: bold;
 }
 .icon-box {
   position: relative;
-  top: 15%;
+  top: 20%;
 }
 .lock-style {
   font-size: 10px;
-  max-height: 35%;
+  max-height: 25%;
 }
 .custom-btn {
   font-size: 80%;
-  width: 20%;
+  width: 10%;
   padding: 1px;
 }
 .slider-width {

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="column justify-center"> <controls-tab-component /> </q-page>
+  <q-page class="column"> <controls-tab-component /> </q-page>
 </template>
 
 <script setup lang="ts">

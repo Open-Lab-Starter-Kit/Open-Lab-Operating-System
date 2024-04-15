@@ -1,5 +1,5 @@
 <template>
-  <div class="row items-center justify-between">
+  <div class="row items-center q-gutter-x-md">
     <span>X</span>
 
     <q-slider
@@ -12,15 +12,19 @@
       thumb-size="25px"
       :disable="isSliderDisabled()"
     />
-    <q-btn
-      icon-right="edit"
-      rounded
-      outline
-      class="custom-btn"
-      :label="xJogStep"
-      @click="openXCustomStepDialog"
-      :disable="isDisabled"
-    />
+    <div class="row col-md col-sm-12 col-xs-12 flex-center q-gutter-x-sm">
+      <span class="text-h8 text-bold">{{ xJogStep }} mm</span>
+      <q-btn
+        :icon="isCustomXStepValue ? 'close' : 'edit'"
+        round
+        outline
+        class="custom-btn"
+        @click="
+          isCustomXStepValue ? clearXStepCustomValue() : openXCustomStepDialog()
+        "
+        :disable="isDisabled"
+      />
+    </div>
   </div>
   <!-- Dialog Component -->
   <custom-dialog

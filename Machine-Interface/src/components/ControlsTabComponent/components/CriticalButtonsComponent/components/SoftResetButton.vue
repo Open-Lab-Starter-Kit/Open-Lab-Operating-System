@@ -14,7 +14,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Constants } from 'src/constants';
-import { executeNormalGCommands } from 'src/services/controls.service';
+import { executeNormalGCommands } from 'src/services/execute.commands.service';
 import { useMachineStatusStore } from 'src/stores/machine-status';
 
 const store = useMachineStatusStore();
@@ -30,3 +30,4 @@ const softResetMachine = () => {
   executeNormalGCommands(Constants.GRBL_COMMAND_SOFT_RESET);
 };
 </script>
+src/services/execute.commands.service

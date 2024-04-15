@@ -1,17 +1,6 @@
 <template>
   <div class="row col-xs-12 col-sm-8 col-md-4 justify-end">
     <q-btn
-      icon="file_open"
-      label="Open File"
-      text-color="black"
-      :color="isFileSelected ? 'grey-4' : 'blue-grey-2'"
-      :disable="!isFileSelected"
-      @click="onOpenFile()"
-      class="q-ma-sm"
-      no-caps
-      size="20px"
-    />
-    <q-btn
       icon="edit"
       label="Rename File"
       text-color="black"
@@ -20,7 +9,18 @@
       @click="onRenameFile()"
       class="q-ma-sm"
       no-caps
-      size="20px"
+      size="25px"
+    />
+    <q-btn
+      icon="file_open"
+      label="Open File"
+      text-color="black"
+      :color="isFileSelected ? 'grey-4' : 'blue-grey-2'"
+      :disable="!isFileSelected"
+      @click="onOpenFile()"
+      class="q-ma-sm"
+      no-caps
+      size="25px"
     />
   </div>
 </template>
@@ -29,14 +29,21 @@
 import { useFileManagementStore } from 'src/stores/file-management';
 import { storeToRefs } from 'pinia';
 import { useQuasar } from 'quasar';
-import { reactive, watch } from 'vue';
+import { onMounted, reactive, watch } from 'vue';
+import { useGcodePreview } from 'src/stores/gcode-preview';
 
 const $q = useQuasar();
-const store = useFileManagementStore();
-const { selectedFilename, isFileSelected } = storeToRefs(store);
+const fileManagerStore = useFileManagementStore();
+const { selectedFilename, isFileSelected } = storeToRefs(fileManagerStore);
 
+const gcodePreviewStore = useGcodePreview();
 // fastapi calls
-const onOpenFile = () => store.openFile();
+const onOpenFile = () => {
+  fileManagerStore.openFile();
+
+  // if there is an error in the previews file reset the error indicator
+  gcodePreviewStore.resetErrorIndicator();
+};
 
 // Create a reactive object to hold filename-related data
 const filenameData = reactive({
@@ -70,7 +77,10 @@ const onRenameFile = () => {
     cancel: true,
   }).onOk((data) => {
     const newFilename = data + '.' + filenameData.fileExtension;
-    store.renameFile(selectedFilename.value, newFilename);
+    fileManagerStore.renameFile(selectedFilename.value, newFilename);
   });
 };
+
+// Update file info on first mount
+onMounted(() => updateFileInfo());
 </script>

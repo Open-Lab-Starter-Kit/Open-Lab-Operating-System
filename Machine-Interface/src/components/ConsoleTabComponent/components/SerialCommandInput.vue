@@ -1,14 +1,14 @@
 <template>
   <q-input
-    rounded
     outlined
     dense
-    color="grey"
+    color="black"
+    bg-color="white"
     v-model="command"
-    label="Type GRBL Command"
+    placeholder="Type GRBL Command"
     lazy-rules
     @keyup.enter="onEnter"
-    class="q-mb-lg"
+    class="row flex-center q-my-lg"
     :disable="isConsoleDisabled()"
   >
     <template v-slot:append>

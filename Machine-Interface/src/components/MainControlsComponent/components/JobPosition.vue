@@ -30,6 +30,7 @@
               dense
               autofocus
               @keyup.enter="scope.set"
+              @keydown="sanitizeInput"
               class="position-metric"
               input-style="font-size: 40px"
             />
@@ -64,6 +65,7 @@
               dense
               autofocus
               @keyup.enter="scope.set"
+              @keydown="sanitizeInput"
               class="position-metric"
               input-style="font-size: 40px"
             />
@@ -98,6 +100,7 @@
               dense
               autofocus
               @keyup.enter="scope.set"
+              @keydown="sanitizeInput"
               class="position-metric"
               input-style="font-size: 40px"
             />
@@ -109,32 +112,53 @@
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import { QPopupEdit } from 'quasar';
 import { Constants } from 'src/constants';
 import { useMachineStatusStore } from 'src/stores/machine-status';
-import { executeNormalGCommands } from 'src/services/controls.service';
+import { executeNormalGCommands } from 'src/services/execute.commands.service';
+import { storeToRefs } from 'pinia';
 
-const store = useMachineStatusStore();
-const { machineState, jobPosition } = storeToRefs(store);
+const machineStatusStore = useMachineStatusStore();
+const { machineState, jobPosition } = storeToRefs(machineStatusStore);
 
 const handleXSetPosition = (value: string) => {
   if (value !== '') {
     executeNormalGCommands('G92 X' + value);
-    store.setXJobPosition(parseFloat(value));
+    machineStatusStore.setXJobPosition(parseFloat(value));
   }
 };
 const handleYSetPosition = (value: string) => {
   if (value !== '') {
     executeNormalGCommands('G92 Y' + value);
-    store.setYJobPosition(parseFloat(value));
+    machineStatusStore.setYJobPosition(parseFloat(value));
   }
 };
 const handleZSetPosition = (value: string) => {
   if (value !== '') {
     executeNormalGCommands('G92 Z' + value);
-    store.setZJobPosition(parseFloat(value));
+    machineStatusStore.setZJobPosition(parseFloat(value));
   }
+};
+
+const sanitizeInput = (event: KeyboardEvent) => {
+  if (['e', 'E', '+', '-'].includes(event.key)) {
+    event.preventDefault();
+  }
+  // Regular expression to match numbers with up to 4 real numbers and 1 decimal
+  const regex = /^\d{0,4}(\.\d{0,1})?$/;
+  const target = event.target as HTMLInputElement;
+  const isValid = regex.test(target.value);
+
+  if (
+    !isValid &&
+    event.key !== 'Backspace' &&
+    event.key !== 'Delete' &&
+    event.key !== 'ArrowLeft' &&
+    event.key !== 'ArrowRight' &&
+    event.key !== 'ArrowUp' &&
+    event.key !== 'ArrowDown'
+  )
+    event.preventDefault();
 };
 </script>
 <style scoped>
@@ -147,3 +171,4 @@ const handleZSetPosition = (value: string) => {
   font-weight: 500;
 }
 </style>
+src/services/execute.commands.service

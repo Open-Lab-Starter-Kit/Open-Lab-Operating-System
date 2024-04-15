@@ -3,36 +3,35 @@
     <!-- Dialog content -->
     <q-card class="full-width q-pa-sm bg-blue-grey-1">
       <q-card-section class="row items-center q-pa-sm">
-        <div class="text-h6">Customize {{ jogAxis }} Jogging Step Value</div>
+        <span style="font-size: 20px"
+          >Customize {{ jogAxis }} Jogging Step Value</span
+        >
         <q-space />
-        <q-btn
-          icon="close"
-          flat
-          round
-          dense
-          v-close-popup
-          @click="closeDialog"
-        />
       </q-card-section>
       <q-card-section>
         <q-input
           v-model="inputValue"
           placeholder="Enter a number"
-          outlined
           type="number"
+          outlined
+          min="0"
+          max="10000"
+          step=".1"
           :rules="[
             (val: number) => !!val || '* Required',
             (val: number) => val > 0 || 'Only positive numbers are allowed.',
             (val: number) =>
               val <= 1000 || 'Number must be less than or equal to 1000.',
           ]"
+          reactive-rules
           lazy-rules
+          @keydown="sanitizeInput"
           input-style="font-size: 30px"
         />
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn label="Clear" color="red-8" @click="clearCustomValue" />
+        <q-btn flat label="Cancel" @click="closeDialog" />
         <q-btn
           label="Set"
           color="primary"
@@ -54,7 +53,7 @@ const props = defineProps<{
 
 const modelValue = defineModel<boolean>();
 
-const emit = defineEmits(['update:modelValue', 'dialogSet', 'dialogClear']);
+const emit = defineEmits(['update:modelValue', 'dialogSet']);
 
 const dialogVisible = ref(modelValue);
 const inputValue = ref(props.jogValue);
@@ -92,12 +91,28 @@ const setCustomValue = () => {
   closeDialog();
 };
 
-const clearCustomValue = () => {
-  emit('dialogClear');
-  closeDialog();
-};
-
 const closeDialog = () => {
   dialogVisible.value = false;
+};
+
+const sanitizeInput = (event: KeyboardEvent) => {
+  if (['e', 'E', '+', '-'].includes(event.key)) {
+    event.preventDefault();
+  }
+  // Regular expression to match numbers with up to 4 real numbers and 1 decimal
+  const regex = /^\d{0,3}(\.\d{0,1})?$/;
+  const target = event.target as HTMLInputElement;
+  const isValid = regex.test(target.value);
+
+  if (
+    !isValid &&
+    event.key !== 'Backspace' &&
+    event.key !== 'Delete' &&
+    event.key !== 'ArrowLeft' &&
+    event.key !== 'ArrowRight' &&
+    event.key !== 'ArrowUp' &&
+    event.key !== 'ArrowDown'
+  )
+    event.preventDefault();
 };
 </script>

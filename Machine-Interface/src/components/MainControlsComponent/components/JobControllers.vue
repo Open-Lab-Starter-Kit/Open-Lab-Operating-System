@@ -1,5 +1,5 @@
 <template>
-  <div class="row q-my-sm justify-around full-width">
+  <div class="row q-my-sm justify-evenly full-width">
     <q-btn
       round
       color="white"
@@ -38,20 +38,23 @@ import { storeToRefs } from 'pinia';
 import { useFileManagementStore } from 'src/stores/file-management';
 import { useMachineStatusStore } from 'src/stores/machine-status';
 import { Constants } from 'src/constants';
-import { executeRealTimeGCommands } from 'src/services/controls.service';
-import { WatchStopHandle, ref, watch } from 'vue';
-import { useJobInfoStore } from 'src/stores/job-info';
+import {
+  executeNormalGCommands,
+  executeRealTimeGCommands,
+} from 'src/services/execute.commands.service';
+import { ref, watch } from 'vue';
 import { useOverrideSettingsStore } from 'src/stores/override-settings';
+import { useGcodePreview } from 'src/stores/gcode-preview';
 
 const fileManagerStore = useFileManagementStore();
 const machineStatusStore = useMachineStatusStore();
-const jobInfoStore = useJobInfoStore();
 const overrideSettingsStore = useOverrideSettingsStore();
+const gcodePreviewStore = useGcodePreview();
 
 const { isFileOpen, isFileExecuting } = storeToRefs(fileManagerStore);
-const { machineState } = storeToRefs(machineStatusStore);
-const { isJobPaused } = storeToRefs(jobInfoStore);
+const { machineState, machinePosition } = storeToRefs(machineStatusStore);
 const { isLaserMode } = storeToRefs(overrideSettingsStore);
+const { previewState } = storeToRefs(gcodePreviewStore);
 
 const getStartButtonStatus = () => {
   // file is open
@@ -102,7 +105,6 @@ const isStopBtnDisabled = (): boolean => {
 };
 
 const stopProcess = () => {
-  jobInfoStore.stopJobTimer();
   executeRealTimeGCommands(Constants.GRBL_COMMAND_STOP);
   isFileExecuting.value = false;
 };
@@ -111,8 +113,8 @@ const startProcess = () => {
   // change the flag to true
   isFileExecuting.value = true;
   if (machineState.value === Constants.IDLE) {
-    fileManagerStore.startFile();
-
+    checkJobPreviewCoordinates();
+    fileManagerStore.startFileExecution();
     // reset override settings when running a new file
     overrideSettingsStore.defaultFeedRate();
     if (isLaserMode.value) {
@@ -127,43 +129,26 @@ const startProcess = () => {
   }
 };
 
-let machineStateWatch: WatchStopHandle | null = null;
-watch(
-  () => isFileExecuting.value,
-  (newIsFileExecuting) => {
-    // If file execution starts
-    if (newIsFileExecuting) {
-      // If there was an existing watch, stop it
-      if (machineStateWatch !== null) {
-        machineStateWatch();
-      }
-
-      // Start a new watch on machineState
-      machineStateWatch = watch(
-        () => machineState.value,
-        (newMachineState) => {
-          // if the machine is running
-          if (machineState.value === Constants.RUN) {
-            // job paused
-            if (isJobPaused.value) {
-              jobInfoStore.resumeJobTimer();
-            } else {
-              jobInfoStore.resetJobTimer();
-              jobInfoStore.startJobTimer();
-            }
-          } else if (newMachineState === Constants.HOLD) {
-            jobInfoStore.pauseJobTimer();
-          }
-        }
-      );
-    } else {
-      // If file execution stops, stop the watch
-      if (machineStateWatch !== null) {
-        machineStateWatch();
-        machineStateWatch = null;
-      }
-    }
+const checkJobPreviewCoordinates = () => {
+  // if the machine position does not match
+  if (
+    machinePosition.value.x !== previewState.value.clampedX ||
+    machinePosition.value.y !== previewState.value.clampedY ||
+    machinePosition.value.z !== previewState.value.clampedZ
+  ) {
+    moveMachineToJobPreviewCoordinate(
+      previewState.value.clampedX - machinePosition.value.x,
+      previewState.value.clampedY - machinePosition.value.y,
+      previewState.value.clampedZ - machinePosition.value.z
+    );
   }
-);
+};
+
+const moveMachineToJobPreviewCoordinate = (x: number, y: number, z: number) => {
+  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands('G0' + 'X' + x + 'Y' + y + 'Z' + z);
+  executeNormalGCommands(Constants.COMMAND_RESET_ZERO_XYZ);
+  machineStatusStore.resetXYZJobPosition();
+};
 </script>
-src/stores/job-controls src/services/controls.service src/stores/job-info
+src/services/execute.commands.service

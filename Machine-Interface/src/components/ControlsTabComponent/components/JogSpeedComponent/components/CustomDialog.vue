@@ -2,17 +2,11 @@
   <q-dialog v-model="dialogVisible" persistent>
     <!-- Dialog content -->
     <q-card class="full-width q-pa-sm bg-blue-grey-1">
-      <q-card-section class="row items-center q-pa-sm">
-        <div class="text-h6">Custom {{ jogAxis }} Jogging Speed Value</div>
+      <q-card-section class="row items-center">
+        <span style="font-size: 20px"
+          >Custom {{ jogAxis }} Jogging Speed Value</span
+        >
         <q-space />
-        <q-btn
-          icon="close"
-          flat
-          round
-          dense
-          v-close-popup
-          @click="closeDialog"
-        />
       </q-card-section>
       <q-card-section>
         <q-input
@@ -26,13 +20,14 @@
             (val: number) =>
               val <= 10000 || 'Number must be less than or equal to 10000.',
           ]"
+          @keydown="sanitizeInput"
           lazy-rules
           input-style="font-size: 30px"
         />
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn label="Clear" color="red-8" @click="clearCustomValue" />
+        <q-btn flat label="Cancel" @click="closeDialog" />
         <q-btn
           label="Set"
           color="primary"
@@ -54,7 +49,7 @@ const props = defineProps<{
 
 const modelValue = defineModel<boolean>();
 
-const emit = defineEmits(['update:modelValue', 'dialogSet', 'dialogClear']);
+const emit = defineEmits(['update:modelValue', 'dialogSet']);
 
 const dialogVisible = ref(modelValue);
 const inputValue = ref(props.jogValue);
@@ -88,12 +83,28 @@ const setCustomValue = () => {
   closeDialog();
 };
 
-const clearCustomValue = () => {
-  emit('dialogClear');
-  closeDialog();
-};
-
 const closeDialog = () => {
   dialogVisible.value = false;
+};
+
+const sanitizeInput = (event: KeyboardEvent) => {
+  if (['e', 'E', '+', '-'].includes(event.key)) {
+    event.preventDefault();
+  }
+  // Regular expression to match numbers with up to 4 real numbers and 1 decimal
+  const regex = /^\d{0,4}(\.\d{0,1})?$/;
+  const target = event.target as HTMLInputElement;
+  const isValid = regex.test(target.value);
+
+  if (
+    !isValid &&
+    event.key !== 'Backspace' &&
+    event.key !== 'Delete' &&
+    event.key !== 'ArrowLeft' &&
+    event.key !== 'ArrowRight' &&
+    event.key !== 'ArrowUp' &&
+    event.key !== 'ArrowDown'
+  )
+    event.preventDefault();
 };
 </script>

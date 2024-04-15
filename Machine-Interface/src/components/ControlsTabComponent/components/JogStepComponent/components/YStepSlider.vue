@@ -1,5 +1,5 @@
 <template>
-  <div class="row items-center justify-between">
+  <div class="row items-center q-gutter-x-md">
     <span>Y</span>
 
     <q-slider
@@ -12,15 +12,23 @@
       thumb-size="25px"
       :disable="isSliderDisabled() || isXYLocked"
     />
-    <q-btn
-      icon-right="edit"
-      rounded
-      outline
-      class="custom-btn"
-      :label="yJogStep"
-      @click="openYCustomStepDialog"
-      :disable="isDisabled || isXYLocked"
-    />
+    <div class="row col-md col-sm-12 col-xs-12 flex-center q-gutter-x-sm">
+      <span class="text-h8 text-bold">{{ yJogStep }} mm</span>
+      <q-btn
+        :icon="
+          isCustomYStepValue || (isCustomXStepValue && isXYLocked)
+            ? 'close'
+            : 'edit'
+        "
+        round
+        outline
+        class="custom-btn"
+        @click="
+          isCustomYStepValue ? clearYStepCustomValue() : openYCustomStepDialog()
+        "
+        :disable="isDisabled || isXYLocked"
+      />
+    </div>
   </div>
   <!-- Dialog Component -->
   <custom-dialog
@@ -44,8 +52,13 @@ const props = defineProps<{
 
 const store = useJogControlsStore();
 
-const { yJogStep, ySliderValue, isCustomYStepValue, isXYLocked } =
-  storeToRefs(store);
+const {
+  yJogStep,
+  ySliderValue,
+  isCustomXStepValue,
+  isCustomYStepValue,
+  isXYLocked,
+} = storeToRefs(store);
 const dialogVisible = ref(false);
 
 const isSliderDisabled = () => {
@@ -65,7 +78,7 @@ const setYStepCustomValue = (newValue: number) => {
 
 const clearYStepCustomValue = () => {
   // reset to its init value
-  yJogStep.value = 0.01;
+  yJogStep.value = 0.1;
   ySliderValue.value = 0;
   // Reenable the slider
   isCustomYStepValue.value = false;

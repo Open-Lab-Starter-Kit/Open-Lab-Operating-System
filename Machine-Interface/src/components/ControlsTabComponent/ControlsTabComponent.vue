@@ -1,16 +1,12 @@
 <template>
-  <div class="column flex-center q-px-md q-gutter-y-md">
+  <div class="column col flex-center q-px-md q-gutter-y-sm">
     <div class="row full-width justify-center q-gutter-sm">
       <critical-buttons />
       <jog-step />
       <jog-speed />
     </div>
-    <div class="row full-width bg-grey-4 q-gutter-sm q-py-sm rounded-borders">
-      <jog-buttons />
-    </div>
-    <div class="column full-width bg-grey-4 q-gutter-sm rounded-borders">
-      <override-file-settings />
-    </div>
+    <jog-buttons />
+    <override-file-settings />
   </div>
 </template>
 

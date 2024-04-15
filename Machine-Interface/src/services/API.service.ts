@@ -7,6 +7,7 @@ interface FileApiResponse {
     process: string;
     message: string;
     file: string;
+    content: string;
     filesList: string[];
     success: boolean;
   };
@@ -64,8 +65,6 @@ const API = {
     api.post<FileApiResponse>(getUrl(Constants.API_URI.FILES, 'close')),
   startFile: () =>
     api.post<FileApiResponse>(getUrl(Constants.API_URI.FILES, 'start')),
-  getFilesList: () =>
-    api.get<FileApiResponse>(getUrl(Constants.API_URI.FILES, 'list')),
   checkOpenFile: () =>
     api.get<FileApiResponse>(getUrl(Constants.API_URI.FILES, 'check')),
 };
