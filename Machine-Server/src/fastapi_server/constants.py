@@ -21,16 +21,15 @@ class FastAPIServerConstants:
     FILE_OPEN_MESSAGE = 'File opened successfully'
     FILE_CLOSE_MESSAGE = 'File closed successfully'
     FILE_DELETE_MESSAGE = 'File deleted successfully'
-    COMMAND_EXECUTE = 'Command to execute: '
 
     # Fast API types
-    FILE_DATA_TYPE = "FILE"
+    FILE_MANAGER_DATA_TYPE = 'FILE_MANAGER'
 
     # File manager processes
-    UPLOAD_FILE_PROCESS = "UPLOAD"
-    OPEN_FILE_PROCESS = "OPEN"
-    START_FILE_PROCESS = "START"
-    DELETE_FILE_PROCESS = "DELETE"
-    RENAME_FILE_PROCESS = "RENAME"
-    LIST_FILES_PROCESS = "LIST"
-    CHECK_FILE_PROCESS = "CHECK"
+    UPLOAD_FILE_PROCESS = "Upload"
+    OPEN_FILE_PROCESS = "Open"
+    START_FILE_PROCESS = "Start"
+    DELETE_FILE_PROCESS = "Delete"
+    RENAME_FILE_PROCESS = "Rename"
+    LIST_FILES_PROCESS = "List"
+    CHECK_FILE_PROCESS = "Check"

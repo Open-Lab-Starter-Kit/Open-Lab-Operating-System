@@ -12,7 +12,7 @@ class GCodeFileManager:
 
         # sum all the lines in the file in one string
         # the reason to use this method is to minimize the usage of memory in the system
-        self._file_contents = ''
+        self._file_content = ''
 
         # an indicator which represent which line the system is processing
         self._line_counter = 0
@@ -68,7 +68,7 @@ class GCodeFileManager:
         self._opened_file.seek(0)
 
         # put all the file content in one string
-        self._file_contents = self._opened_file.read()
+        self._file_content = self._opened_file.read()
 
         # incase of restart procedure
         self.reset_line_index()
@@ -100,6 +100,9 @@ class GCodeFileManager:
             return os.path.relpath(self._opened_file.name, self._base_directory)
         return None
 
+    def get_opened_file_content(self):
+        return self._file_content
+
     def get_line_index(self):
         return self._line_counter
 
@@ -112,13 +115,13 @@ class GCodeFileManager:
         self._line_counter += 1
 
         # Find the position of the first newline character
-        end_line_index = self._file_contents.find('\n')
+        end_line_index = self._file_content.find('\n')
         # If there is no newline, yield the remaining content
         if end_line_index == -1:
-            if self._file_contents:
+            if self._file_content:
                 # take the last line in the string
-                line = self._file_contents.strip()
-                self._file_contents = ''
+                line = self._file_content.strip()
+                self._file_content = ''
 
                 return line
             # string is empty
@@ -126,8 +129,8 @@ class GCodeFileManager:
                 return None
 
         # Yield the first line and remove it from the remaining content
-        line = self._file_contents[:end_line_index].strip()
-        self._file_contents = self._file_contents[end_line_index + 1:]
+        line = self._file_content[:end_line_index].strip()
+        self._file_content = self._file_content[end_line_index + 1:]
 
         return line
 
@@ -141,8 +144,8 @@ class GCodeFileManager:
     def write_gcode_file(self, filename, content):
         file_path = os.path.join(self._base_directory, filename)
 
-        # Split content into lines and exclude the first line (name of the file)
-        lines = content.decode('utf-8').split('\n')[1:]
+        # Split content into lines
+        lines = content.decode('utf-8').splitlines()
 
         # Join the lines back together
         updated_content = '\n'.join(lines)
@@ -150,6 +153,10 @@ class GCodeFileManager:
         # Write the modified content to the file
         with open(file_path, 'wb') as gcode_file:
             gcode_file.write(updated_content.encode('utf-8'))
+
+            # incase the user uploaded the file that has the name similar to opened file
+            if filename == self.get_open_filename():
+                self._file_content = updated_content
 
     def delete_file(self, filename):
         # close the file if it is the same open file before delete
@@ -164,4 +171,4 @@ class GCodeFileManager:
     def close_file(self):
         self._opened_file.close()
         self._opened_file = None
-        self._file_contents = ''
+        self._file_content = ''

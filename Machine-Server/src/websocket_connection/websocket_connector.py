@@ -11,7 +11,7 @@ from .constants import WebsocketConstants as constants
 class WebSocketConnector(Process):
     def __init__(self, websocket_server_data):
         super(WebSocketConnector, self).__init__()
-        self._websocket_connection = None
+        self._websocket_connections = set()
         self._is_connected = False
 
         # shared objects with the core
@@ -63,24 +63,26 @@ class WebSocketConnector(Process):
                 print(f"Error: {e}")
 
     async def handle_client(self, websocket, path):
-        self._websocket_connection = websocket
+        self._websocket_connections.add(websocket)
         try:
             while True:
                 # Delay to not consume the CPU
                 await asyncio.sleep(constants.TIMEOUT)
                 await asyncio.gather(
-                    self.send_data_to_user(),
-                    self.receive_data_from_user()
+                    self.send_data_to_users(),
+                    self.receive_data_from_users()
                 )
 
         except websockets.exceptions.ConnectionClosedOK:
             print("WebSocket connection closed by the client")
-            self._websocket_connection = None
-            self._is_connected = False
+            self._websocket_connections.discard(
+                websocket)  # Remove closed connection
+            if not self._websocket_connections:  # Check if there are no connections left
+                self._is_connected = False
 
         except websockets.exceptions.ConnectionClosedError:
             print("WebSocket connection closed unexpectedly")
-            self._websocket_connection = None
+            self._websocket_connections = set()
             self._is_connected = False
 
     # add new command to the websocket read queue
@@ -94,50 +96,56 @@ class WebSocketConnector(Process):
             type, priority, command)
 
     # Handle data that the server wants to send to the user
-    async def send_data_to_user(self):
+    async def send_data_to_users(self):
         # wait in case the user refresh the browser and we lose the websocket connection
 
         async with self._send_lock:
             # there is data need to be shown to the user
             # and there is connection
             if (not self.websocket_server_data.websocket_write_queue.empty() and
-                    self._websocket_connection):
+                    self._websocket_connections):
                 type, data = self.websocket_server_data.websocket_write_queue.get(
                 )
-                await self._websocket_connection.send(data)
+
+                # Send to all the clients connected to server
+                await asyncio.gather(*(ws_connection.send(data) for ws_connection in self._websocket_connections))
 
     # Handle sent data from the user
-    async def receive_data_from_user(self):
+    async def receive_data_from_users(self):
         async with self._recv_lock:
-            try:
-                if self._websocket_connection:
-                    # Receive data if possible every 10 ms
-                    json_data = await asyncio.wait_for(self._websocket_connection.recv(), timeout=constants.TIMEOUT)
-                    if json_data:
+            if len(self._websocket_connections):
+                await asyncio.gather(*(self.analyze_user_message(ws_connection) for ws_connection in self._websocket_connections))
 
-                        # Extract type and data from the dictionary
-                        data_dict = json.loads(json_data)
-                        type = data_dict.get('type')
-                        data = data_dict.get('data')
+    async def analyze_user_message(self, ws_connection):
+        try:
 
-                        if config("ENV") == 'development':
-                            print("Data received from user: ", data)
+            # Receive data if possible every 10 ms
+            json_data = await asyncio.wait_for(ws_connection.recv(), timeout=constants.TIMEOUT)
+            if json_data:
 
-                        # Process the received data
-                        self.add_to_websocket_read_queue(type,
-                                                         constants.HIGH_PRIORITY_COMMAND,
-                                                         data)
+                # Extract type and data from the dictionary
+                data_dict = json.loads(json_data)
+                type = data_dict.get('type')
+                data = data_dict.get('data')
 
-            except asyncio.TimeoutError:
-                pass  # Continue the loop if no data received within the timeout
+                if config("ENV") == 'development':
+                    print("Data received from user: ", data_dict)
 
-            except Exception as e:
-                print(f"An error occurred: {e}")
+                # Process the received data
+                self.add_to_websocket_read_queue(type,
+                                                 constants.HIGH_PRIORITY_COMMAND,
+                                                 data)
+
+        except asyncio.TimeoutError:
+            pass  # Continue the loop if no data received within the timeout
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     async def disconnect_websocket(self):
-        if self._websocket_connection:
-            await self._websocket_connection.close()
-            self._websocket_connection = None
+        if self._websocket_connections:
+            await self._websocket_connections.close()
+            self._websocket_connections = None
             self._is_connected = False
             print("Websocket connection closed")
 

@@ -63,11 +63,20 @@ class JsonParse:
 
         return json.dumps(dict, indent=2)
 
-    def parse_file_command_to_json(self, command, line_index, total_lines):
-        dict = {"type": "FILE",
+    def parse_file_execution_command_to_json(self, command, line_index, total_lines, file_timer):
+        dict = {"type": "FILE_EXECUTION",
                 "text": command,
                 "line_index": line_index,
                 "total_lines": total_lines,
+                "file_timer": file_timer,
+                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+        return json.dumps(dict, indent=2)
+
+    def parse_file_manager_message_to_json(self, opened_filename, files_list):
+        dict = {"type": "FILE_MANAGER",
+                "opened_file": opened_filename,
+                "files_list": files_list,
                 "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return json.dumps(dict, indent=2)
@@ -75,6 +84,13 @@ class JsonParse:
     def parse_connection_status_to_json(self, success):
         dict = {"type": "MACHINE_CONNECTION",
                 "success": success,
+                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+        return json.dumps(dict, indent=2)
+
+    def parse_cameras_frame_to_json(self, frameStr):
+        dict = {"type": "CAMERAS_SYSTEM",
+                "frame": frameStr,
                 "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return json.dumps(dict, indent=2)

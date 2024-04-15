@@ -99,3 +99,21 @@ class SharedFastApiData:
     @property
     def fastapi_write_queue(self):
         return self._data['fastapi_write_queue']
+
+
+class SharedCamerasSystemData:
+    def __init__(self):
+        manager = SharedDataManager().get_manager()
+        self._data = {
+            'cameras_read_queue': manager.Queue(),
+            'cameras_write_queue': manager.Queue(),
+
+        }
+
+    @property
+    def cameras_read_queue(self):
+        return self._data['cameras_read_queue']
+
+    @property
+    def cameras_write_queue(self):
+        return self._data['cameras_write_queue']

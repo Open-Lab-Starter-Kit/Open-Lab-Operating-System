@@ -3,8 +3,10 @@ import time
 from file_management.file_manager import GCodeFileManager
 from machine_connection.machine_connector import MachineConnector
 from fastapi_server.main import FastApiServer
+from camera_stream.cameras_system import CamerasSystem
+from utils.file_execution_timer import FileExecutionTimer
 from utils.json_parse import JsonParse
-from utils.shared_data import SharedFastApiData, SharedMachineData, SharedWebsocketData
+from utils.shared_data import SharedCamerasSystemData, SharedFastApiData, SharedMachineData, SharedWebsocketData
 from utils.common_methods import CommonMethods
 from websocket_connection.websocket_connector import WebSocketConnector
 from .constants import CoreConstants as constants
@@ -20,18 +22,22 @@ class ServerCore:
         self.machine_connector_shared_data = SharedMachineData()
         self.websocket_connector_shared_data = SharedWebsocketData()
         self.fastapi_server_shared_data = SharedFastApiData()
-
+        self.cameras_system_shared_data = SharedCamerasSystemData()
         # instance for each process
         self.machine_connector = MachineConnector(
             self.machine_connector_shared_data)
         self.websocket_connector = WebSocketConnector(
             self.websocket_connector_shared_data)
         self.fastapi_server = FastApiServer(self.fastapi_server_shared_data)
+        self.cameras_system = CamerasSystem(self.cameras_system_shared_data)
 
         # regular instance
         self.gcode_file_manager = GCodeFileManager()
+
+        # helper instances
         self.common_methods = CommonMethods()
         self.json_parse = JsonParse()
+        self.file_execution_timer = FileExecutionTimer()
 
         '''
         flags to check if the process is file execution and
@@ -43,9 +49,6 @@ class ServerCore:
         self._is_file_execute_process = False
         self._is_file_executing = False
 
-        # attributes
-        self.current_refresh_file_time = time.time()
-
     def start(self):
         try:
             print("Server is running...")
@@ -54,6 +57,7 @@ class ServerCore:
             self.machine_connector.start()
             self.websocket_connector.start()
             self.fastapi_server.start()
+            self.cameras_system.start()
 
             while (self.machine_connector.is_alive() or
                    self.websocket_connector.is_alive() or
@@ -65,11 +69,14 @@ class ServerCore:
                 # Check for incoming messages from the machine to be handled
                 self.handle_incoming_machine_data()
 
-                # check if there is any reset api requests
+                # Check if there is any reset api requests
                 self.handle_rest_api_calls()
 
                 # Check if there is a file getting executed
                 self.handle_file_execution()
+
+                # Check cameras stream frames
+                self.handle_cameras_system()
 
                 # Delay to reduce the cpu usage
                 time.sleep(constants.TIMEOUT)
@@ -87,6 +94,9 @@ class ServerCore:
             # Stop the fastapi server process
             self.fastapi_server.terminate()
             self.fastapi_server.join()
+            # Stop the cameras system process
+            self.cameras_system.terminate()
+            self.cameras_system.join()
 
     def handle_incoming_websocket_messages(self):
         # add data coming from user interface to serial write queue
@@ -113,27 +123,30 @@ class ServerCore:
         if command == constants.GRBL_COMMAND_STOP:
             self.machine_connector.stop_machine()
             self.reset_the_core_system()
+            self.file_execution_timer.stop()
 
         # received pause command from user
         elif command == constants.GRBL_COMMAND_PAUSE:
             self.update_file_execution_status()
             self.machine_connector.pause_machine()
+            self.file_execution_timer.pause()
 
         # received resume command from user
         elif command == constants.GRBL_COMMAND_RESUME:
             self.update_file_execution_status()
             self.machine_connector.resume_machine()
+            self.file_execution_timer.resume()
 
         else:
             self.machine_connector.add_to_serial_write_queue(constants.REAL_TIME_COMMANDS,
                                                              constants.HIGH_PRIORITY_COMMAND,
                                                              command)
 
-        # convert to json data
+        # convert response to json data
         res = self.json_parse.parse_serial_command_to_json(command)
-        self.send_to_interface_console_output(constants.SERIAL_COMMAND_DATA_TYPE,
-                                              constants.HIGH_PRIORITY_COMMAND,
-                                              res)
+        self.send_to_interface_via_websocket(constants.SERIAL_COMMAND_DATA_TYPE,
+                                             constants.HIGH_PRIORITY_COMMAND,
+                                             res)
 
     # handle normal commands
     def handle_normal_commands(self, command):
@@ -161,11 +174,11 @@ class ServerCore:
             self.machine_connector.add_to_serial_write_queue(
                 constants.NORMAL_COMMAND_DATA_TYPE, constants.MIDDLE_PRIORITY_COMMAND, command)
 
-        # convert to json data
+        # convert response to json data
         res = self.json_parse.parse_serial_command_to_json(command)
-        self.send_to_interface_console_output(constants.NORMAL_COMMAND_DATA_TYPE,
-                                              constants.MIDDLE_PRIORITY_COMMAND,
-                                              res)
+        self.send_to_interface_via_websocket(constants.NORMAL_COMMAND_DATA_TYPE,
+                                             constants.MIDDLE_PRIORITY_COMMAND,
+                                             res)
 
     # handle commands user want to send to serial
 
@@ -180,9 +193,9 @@ class ServerCore:
                                         command)
             # convert to json data
             res = self.json_parse.parse_serial_command_to_json(command)
-            self.send_to_interface_console_output(constants.SERIAL_COMMAND_DATA_TYPE,
-                                                  constants.MIDDLE_PRIORITY_COMMAND,
-                                                  res)
+            self.send_to_interface_via_websocket(constants.SERIAL_COMMAND_DATA_TYPE,
+                                                 constants.MIDDLE_PRIORITY_COMMAND,
+                                                 res)
 
     def handle_rest_api_calls(self):
         if not self.fastapi_server_shared_data.fastapi_read_queue.empty():
@@ -190,7 +203,7 @@ class ServerCore:
             self.analyze_fastapi_requests(type, data)
 
     def analyze_fastapi_requests(self, type, data):
-        if type == constants.FILE_DATA_TYPE:
+        if type == constants.FILE_MANAGER_DATA_TYPE:
             self.handle_file_management_requests(data)
 
     # handle requests sent from user related to file management system
@@ -224,21 +237,21 @@ class ServerCore:
                 file = data.get("file")
                 self.handle_delete_file(file)
 
-            # handle listing files
-            elif constants.LIST_FILES_PROCESS == process:
-                self.handle_files_list()
-
             # handle check opened file
             elif constants.CHECK_FILE_PROCESS == process:
                 self.handle_check_opened_file()
 
+            # update the status of the file manager to all connected clients
+            self.distribute_file_manager_message_to_all_clients()
+
         # incase of any error in the system
         except Exception as error:
             response = self.fastapi_file_manager_response(
-                type=constants.FILE_DATA_TYPE,
+                type=constants.FILE_MANAGER_DATA_TYPE,
                 process=process,
                 message=error,
                 file='',
+                content='',
                 files_list='',
                 success=False
             )
@@ -248,16 +261,28 @@ class ServerCore:
     def handle_upload_file(self, file, content):
         # Create a new file with the same name of the file uploaded
         self.gcode_file_manager.write_gcode_file(file, content)
+        response = self.fastapi_file_manager_response(
+            type=constants.FILE_MANAGER_DATA_TYPE,
+            process=constants.UPLOAD_FILE_PROCESS,
+            message=constants.UPLOAD_FILE_MESSAGE,
+            file=file,
+            content=self.gcode_file_manager.get_opened_file_content(),
+            files_list=self.gcode_file_manager.get_files_list(),
+            success=True
+        )
+
+        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
 
     # open selected file by user
 
     def handle_open_file(self, file):
         self.gcode_file_manager.open_file(file)
         response = self.fastapi_file_manager_response(
-            type=constants.FILE_DATA_TYPE,
+            type=constants.FILE_MANAGER_DATA_TYPE,
             process=constants.OPEN_FILE_PROCESS,
             message=constants.OPEN_FILE_MESSAGE,
             file=file,
+            content=self.gcode_file_manager.get_opened_file_content(),
             files_list=self.gcode_file_manager.get_files_list(),
             success=True
         )
@@ -278,12 +303,17 @@ class ServerCore:
             # when start executing file reset the counter
             self.machine_connector.reset_counter()
 
+            # reset the file execution timer and start new one
+            self.file_execution_timer.reset()
+            self.file_execution_timer.start()
+
             # get opened file
             response = self.fastapi_file_manager_response(
-                type=constants.FILE_DATA_TYPE,
+                type=constants.FILE_MANAGER_DATA_TYPE,
                 process=constants.START_FILE_PROCESS,
                 message=constants.START_FILE_MESSAGE,
                 file=opened_file,
+                content=self.gcode_file_manager.get_opened_file_content(),
                 files_list=self.gcode_file_manager.get_files_list(),
                 success=True
             )
@@ -292,10 +322,11 @@ class ServerCore:
             print('There is no file open in the system')
             # get opened file
             response = self.fastapi_file_manager_response(
-                type=constants.FILE_DATA_TYPE,
+                type=constants.FILE_MANAGER_DATA_TYPE,
                 process=constants.START_FILE_PROCESS,
                 message=constants.START_FILE_ERROR,
                 file='',
+                content='',
                 files_list=self.gcode_file_manager.get_files_list(),
                 success=False
             )
@@ -309,10 +340,11 @@ class ServerCore:
         self.gcode_file_manager.delete_file(file)
 
         response = self.fastapi_file_manager_response(
-            type=constants.FILE_DATA_TYPE,
+            type=constants.FILE_MANAGER_DATA_TYPE,
             process=constants.DELETE_FILE_PROCESS,
             message=constants.DELETE_FILE_MESSAGE,
             file=file,
+            content=self.gcode_file_manager.get_opened_file_content(),
             files_list=self.gcode_file_manager.get_files_list(),
             success=True
         )
@@ -323,22 +355,11 @@ class ServerCore:
         self.gcode_file_manager.rename_file(old_filename, new_filename)
 
         response = self.fastapi_file_manager_response(
-            type=constants.FILE_DATA_TYPE,
+            type=constants.FILE_MANAGER_DATA_TYPE,
             process=constants.RENAME_FILE_PROCESS,
             message=constants.RENAME_FILE_MESSAGE,
             file=new_filename,
-            files_list=self.gcode_file_manager.get_files_list(),
-            success=True
-        )
-
-        self.fastapi_server_shared_data.fastapi_write_queue.put(response)
-
-    def handle_files_list(self):
-        response = self.fastapi_file_manager_response(
-            type=constants.FILE_DATA_TYPE,
-            process=constants.LIST_FILES_PROCESS,
-            message='',
-            file='',
+            content=self.gcode_file_manager.get_opened_file_content(),
             files_list=self.gcode_file_manager.get_files_list(),
             success=True
         )
@@ -347,27 +368,38 @@ class ServerCore:
 
     def handle_check_opened_file(self):
         response = self.fastapi_file_manager_response(
-            type=constants.FILE_DATA_TYPE,
+            type=constants.FILE_MANAGER_DATA_TYPE,
             process=constants.CHECK_FILE_PROCESS,
-            message='',
+            message=constants.CHECK_OPEN_FILE_MESSAGE,
             file=self.gcode_file_manager.get_open_filename(),
+            content=self.gcode_file_manager.get_opened_file_content(),
             files_list=self.gcode_file_manager.get_files_list(),
             success=True
         )
 
         self.fastapi_server_shared_data.fastapi_write_queue.put(response)
 
-    def fastapi_file_manager_response(self, type, process, message, file, files_list, success):
+    def fastapi_file_manager_response(self, type, process, message, file, content, files_list, success):
         return {
             'type': type,
             'data': {
                 'process': process,
                 'message': message,
                 'file': file,
+                'content': content,
                 'filesList': files_list,
                 'success': success
             }
         }
+
+    # This function will update the status of the file manager to all connected clients
+    def distribute_file_manager_message_to_all_clients(self):
+        opened_filename = self.gcode_file_manager.get_open_filename()
+        files_list = self.gcode_file_manager.get_files_list()
+        res = self.json_parse.parse_file_manager_message_to_json(
+            opened_filename, files_list)
+        self.send_to_interface_via_websocket(
+            constants.FILE_MANAGER_DATA_TYPE, constants.LOW_PRIORITY_COMMAND, res)
 
     def handle_incoming_machine_data(self):
         # The serial read queue is not empty
@@ -385,7 +417,7 @@ class ServerCore:
             elif type == constants.MACHINE_CONNECTION_DATA_TYPE:
                 res = self.json_parse.parse_connection_status_to_json(data)
 
-            self.send_to_interface_console_output(
+            self.send_to_interface_via_websocket(
                 type,
                 constants.MIDDLE_PRIORITY_COMMAND,
                 res)
@@ -421,12 +453,13 @@ class ServerCore:
                 # Add the command that is sent to machine to websocket, so that it will be shown to user being executed
                 line_index = self.gcode_file_manager.get_line_index()
                 total_lines = self.gcode_file_manager.get_total_lines()
-                res = self.json_parse.parse_file_command_to_json(
-                    gcode_command, line_index, total_lines)
+                file_timer = self.file_execution_timer.get_elapsed_time()
+                res = self.json_parse.parse_file_execution_command_to_json(
+                    gcode_command, line_index, total_lines, file_timer)
 
-                self.send_to_interface_console_output(constants.FILE_DATA_TYPE,
-                                                      constants.MIDDLE_PRIORITY_COMMAND,
-                                                      res)
+                self.send_to_interface_via_websocket(constants.FILE_EXECUTION_DATA_TYPE,
+                                                     constants.MIDDLE_PRIORITY_COMMAND,
+                                                     res)
 
             # not a valid gcode command repeat the process to get the next line
             else:
@@ -438,13 +471,24 @@ class ServerCore:
             self._is_file_execute_process = False
             self._is_file_executing = False
             self.machine_connector.reset_counter()
+            self.file_execution_timer.stop()
+
+    def handle_cameras_system(self):
+        if not self.cameras_system_shared_data.cameras_read_queue.empty():
+            cameras_frame = self.cameras_system_shared_data.cameras_read_queue.get()
+
+            res = self.json_parse.parse_cameras_frame_to_json(cameras_frame)
+
+            self.send_to_interface_via_websocket(constants.CAMERAS_SYSTEM_STREAM_DATA_TYPE,
+                                                 constants.MIDDLE_PRIORITY_COMMAND,
+                                                 res)
 
     def send_to_machine_serial(self, type, priority, data):
         self.machine_connector.add_to_serial_write_queue(type,
                                                          priority,
                                                          data)
 
-    def send_to_interface_console_output(self, type, priority, data):
+    def send_to_interface_via_websocket(self, type, priority, data):
         self.websocket_connector.add_to_websocket_write_queue(
             type, priority, data)
 

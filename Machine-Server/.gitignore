@@ -1,3 +1,5 @@
 venv
 Tests
 src/file_management/gcode_stored_files/
+dist
+build

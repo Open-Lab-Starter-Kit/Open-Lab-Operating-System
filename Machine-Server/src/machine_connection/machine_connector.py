@@ -22,36 +22,32 @@ class MachineConnector(Process):
         self._current_refresh_status_time = time.time()
 
     def run(self):
-        # try:
-        # start serial connection
-        self._serial_connection.connect_to_serial()
+        try:
+            # start serial connection
+            self._serial_connection.connect_to_serial()
 
-        if self._serial_connection.is_serial_connected():
-            # notify the core that the machine is connected
-            self.add_to_serial_read_queue(constants.MACHINE_CONNECTION_DATA_TYPE,
-                                          constants.HIGH_PRIORITY_COMMAND,
-                                          True)
+            if self._serial_connection.is_serial_connected():
+                # notify the core that the machine is connected
+                self.add_to_serial_read_queue(constants.MACHINE_CONNECTION_DATA_TYPE,
+                                              constants.HIGH_PRIORITY_COMMAND,
+                                              True)
 
-            self.start_machine_communication()
+                self.start_machine_communication()
 
-        else:
-            print("There is no serial connection")
-            # notify the core that the machine is disconnected
-            self.add_to_serial_read_queue(constants.MACHINE_CONNECTION_DATA_TYPE,
-                                          constants.HIGH_PRIORITY_COMMAND,
-                                          False)
+            else:
+                print("There is no serial connection")
+                # notify the core that the machine is disconnected
+                self.add_to_serial_read_queue(constants.MACHINE_CONNECTION_DATA_TYPE,
+                                              constants.HIGH_PRIORITY_COMMAND,
+                                              False)
 
+                self.reconnect_to_serial()
+
+        except Exception as error:
+            print("Serial Connection Error:", error)
+            self._serial_connection.disconnect_serial()
             self.reconnect_to_serial()
-
-        # except Exception as error:
-        #     print("Serial Connection Error:", error)
-        #     self._serial_connection.disconnect_serial()
-        #     self.reconnect_to_serial()
-
-        # finally:
-        #     self._serial_connection.disconnect_serial()
-        #     self._serial_connection.disconnect_serial()
-        #     self.reconnect_to_serial()
+        
 
     # Start fetching and sending data
     def start_machine_communication(self):

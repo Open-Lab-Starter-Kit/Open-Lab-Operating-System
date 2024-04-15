@@ -3,16 +3,12 @@ class CoreConstants:
     # Data types for websocket messages
     MACHINE_STATUS_DATA_TYPE = 'MACHINE_STATUS'
     SERIAL_COMMAND_DATA_TYPE = 'SERIAL_COMMAND'
-    FILE_DATA_TYPE = 'FILE'
+    FILE_EXECUTION_DATA_TYPE = 'FILE_EXECUTION'
     REAL_TIME_COMMAND_DATA_TYPE = 'REAL_TIME_COMMAND'
     NORMAL_COMMAND_DATA_TYPE = 'NORMAL_COMMAND'
     MACHINE_CONNECTION_DATA_TYPE = 'MACHINE_CONNECTION'
-
-    # Front end prefixes API here
-    FRONTEND_CONSOLE_PREFIX = 'C_'
-    FRONTEND_LIST_FILE_PREFIX = 'LS_'
-    FRONTEND_FILE_OPENED_STATUS = 'FOS_'
-    FRONTEND_FILE_CLOSED_STATUS = 'FCS_'
+    FILE_MANAGER_DATA_TYPE = 'FILE_MANAGER'
+    CAMERAS_SYSTEM_STREAM_DATA_TYPE = 'CAMERAS_STREAM'
 
     # Frontend messages
     UPLOAD_FILE_MESSAGE = 'File uploaded'
@@ -22,12 +18,11 @@ class CoreConstants:
     CLOSE_FILE_MESSAGE = 'File closed successfully'
     DELETE_FILE_MESSAGE = 'File deleted successfully'
     RENAME_FILE_MESSAGE = 'File renamed successfully'
-
-    COMMAND_EXECUTE = 'Command to execute: '
+    CHECK_OPEN_FILE_MESSAGE = 'There is an already opened file.'
 
     NEW_LINE = '\n'
 
-    TIMEOUT = 0.02  # 20 ms
+    TIMEOUT = 0.01  # 10 ms
 
     # Constants for G-code comments
     GCODE_COMMENT_PARENTHESES = '('
@@ -59,10 +54,9 @@ class CoreConstants:
     LOW_PRIORITY_COMMAND = 3
 
     # File manager processes
-    UPLOAD_FILE_PROCESS = "UPLOAD"
-    OPEN_FILE_PROCESS = "OPEN"
-    START_FILE_PROCESS = "START"
-    DELETE_FILE_PROCESS = "DELETE"
-    RENAME_FILE_PROCESS = "RENAME"
-    LIST_FILES_PROCESS = "LIST"
-    CHECK_FILE_PROCESS = "CHECK"
+    UPLOAD_FILE_PROCESS = "Upload"
+    OPEN_FILE_PROCESS = "Open"
+    START_FILE_PROCESS = "Start"
+    DELETE_FILE_PROCESS = "Delete"
+    RENAME_FILE_PROCESS = "Rename"
+    CHECK_FILE_PROCESS = "Check"

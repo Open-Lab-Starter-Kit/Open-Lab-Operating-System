@@ -25,11 +25,12 @@ def open_file(filename: str, request: Request):
 
 
 @router.post("/upload")
-async def upload_files(request: Request, files: List[UploadFile] = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...)):
     try:
         shared_core_data = request.app.shared_core_data
-        FileManagerService.upload_files(
-            shared_core_data, files)
+        core_response = FileManagerService.upload_file(
+            shared_core_data, file)
+        return JSONResponse(content=core_response, status_code=200)
 
     except Exception as error:
         print(error)
@@ -77,17 +78,6 @@ def check_opened_file(request: Request):
     try:
         shared_core_data = request.app.shared_core_data
         core_response = FileManagerService.check_opened_file(shared_core_data)
-        return JSONResponse(content=core_response, status_code=200)
-
-    except Exception as error:
-        raise HTTPException(status_code=500, detail=str(error))
-
-
-@router.get("/list")
-def get_files_list(request: Request):
-    try:
-        shared_core_data = request.app.shared_core_data
-        core_response = FileManagerService.get_files_list(shared_core_data)
         return JSONResponse(content=core_response, status_code=200)
 
     except Exception as error:
