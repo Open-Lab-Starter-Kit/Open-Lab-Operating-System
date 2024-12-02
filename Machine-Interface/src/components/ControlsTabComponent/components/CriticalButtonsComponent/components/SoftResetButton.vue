@@ -26,7 +26,7 @@ const isSoftResetBtnDisabled = () => {
 };
 
 const softResetMachine = () => {
-  status.value.state = Constants.CONNECTED;
+  status.value.state = Constants.CONNECTING;
   executeNormalGCommands(Constants.GRBL_COMMAND_SOFT_RESET);
 };
 </script>

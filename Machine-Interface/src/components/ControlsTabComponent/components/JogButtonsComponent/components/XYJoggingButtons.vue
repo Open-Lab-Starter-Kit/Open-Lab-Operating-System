@@ -1,6 +1,6 @@
 <template>
   <div
-    class="column col-7 col-md-7 col-sm-12 col-xs-12 q-gutter-sm items-center q-py-md"
+    class="column col col-md col-sm-12 col-xs-12 q-gutter-sm items-center q-py-md"
   >
     <div class="row col q-px-md q-gutter-x-md">
       <q-btn
@@ -104,15 +104,15 @@ defineProps<{
 const store = useJogControlsStore();
 const { xJogStep, yJogStep, xyJogSpeed } = storeToRefs(store);
 const XYJog0 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1 X' + xJogStep.value + ' F' + xyJogSpeed.value * 60
   );
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 
 const XYJog45 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1' +
       ' X' +
@@ -123,17 +123,17 @@ const XYJog45 = () => {
       xyJogSpeed.value * 60
   );
 
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 const XYJog90 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1 Y' + yJogStep.value + ' F' + xyJogSpeed.value * 60
   );
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 const XYJog135 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1' +
       ' X-' +
@@ -144,17 +144,17 @@ const XYJog135 = () => {
       xyJogSpeed.value * 60
   );
 
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 const XYJog180 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1 X-' + xJogStep.value + ' F' + xyJogSpeed.value * 60
   );
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 const XYJog225 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1' +
       ' X-' +
@@ -165,17 +165,17 @@ const XYJog225 = () => {
       xyJogSpeed.value * 60
   );
 
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 const XYJog270 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1 Y-' + yJogStep.value + ' F' + xyJogSpeed.value * 60
   );
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 const XYJog315 = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1' +
       ' X' +
@@ -186,7 +186,7 @@ const XYJog315 = () => {
       xyJogSpeed.value * 60
   );
 
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 </script>
 <style scoped>

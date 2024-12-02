@@ -1,0 +1,100 @@
+diff --git a/node_modules/element-to-path/dist/element-to-path.cjs.js b/node_modules/element-to-path/dist/element-to-path.cjs.js
+index 79b96bb..3055e99 100644
+--- a/node_modules/element-to-path/dist/element-to-path.cjs.js
++++ b/node_modules/element-to-path/dist/element-to-path.cjs.js
+@@ -64,18 +64,18 @@ const ellipse = attrs => {
+   ]
+ };
+ 
+-const line = ({ x1, y1, x2, y2 }) => {
+-  return [`M${+x1} ${+y1}`, `L${+x2} ${+y2}`]
++const line = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0 }) => {
++  return [`M${+x1} ${+y1}`, `L${+x2} ${+y2}`];
+ };
+ 
+ const poly = attrs => {
+   const { points } = attrs;
+   const pointsArray = points
+-  .trim()
+-  .split(' ')
++    .trim()
++    .split(' ')
+     .reduce((arr, point) => {
+-    return [...arr,  ...(point.includes(',') ? point.split(',') : point.trim() !== '' ? [point] : [])]
+-  }, []);
++      return [...arr, ...(point.includes(',') ? point.split(',') : point.trim() !== '' ? [point] : [])]
++    }, []);
+ 
+   const pairs = chunkArray(pointsArray, 2);
+   return pairs.map(([x, y], i) => {
+diff --git a/node_modules/element-to-path/dist/element-to-path.esm.js b/node_modules/element-to-path/dist/element-to-path.esm.js
+index cf57a3a..f4f947b 100644
+--- a/node_modules/element-to-path/dist/element-to-path.esm.js
++++ b/node_modules/element-to-path/dist/element-to-path.esm.js
+@@ -62,18 +62,18 @@ const ellipse = attrs => {
+   ]
+ };
+ 
+-const line = ({ x1, y1, x2, y2 }) => {
+-  return [`M${+x1} ${+y1}`, `L${+x2} ${+y2}`]
++const line = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0 }) => {
++  return [`M${+x1} ${+y1}`, `L${+x2} ${+y2}`];
+ };
+ 
+ const poly = attrs => {
+   const { points } = attrs;
+   const pointsArray = points
+-  .trim()
+-  .split(' ')
++    .trim()
++    .split(' ')
+     .reduce((arr, point) => {
+-    return [...arr,  ...(point.includes(',') ? point.split(',') : point.trim() !== '' ? [point] : [])]
+-  }, []);
++      return [...arr, ...(point.includes(',') ? point.split(',') : point.trim() !== '' ? [point] : [])]
++    }, []);
+ 
+   const pairs = chunkArray(pointsArray, 2);
+   return pairs.map(([x, y], i) => {
+diff --git a/node_modules/element-to-path/dist/element-to-path.umd.js b/node_modules/element-to-path/dist/element-to-path.umd.js
+index 5667bf7..e320edb 100644
+--- a/node_modules/element-to-path/dist/element-to-path.umd.js
++++ b/node_modules/element-to-path/dist/element-to-path.umd.js
+@@ -1,8 +1,9 @@
+ (function (global, factory) {
+   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+-  typeof define === 'function' && define.amd ? define(factory) :
+-  (global.elementToPath = factory());
+-}(this, (function () { 'use strict';
++    typeof define === 'function' && define.amd ? define(factory) :
++      (global.elementToPath = factory());
++}(this, (function () {
++  'use strict';
+ 
+   const chunkArray = (arr, size = 2) => {
+     let results = [];
+@@ -68,18 +69,18 @@
+     ]
+   };
+ 
+-  const line = ({ x1, y1, x2, y2 }) => {
+-    return [`M${+x1} ${+y1}`, `L${+x2} ${+y2}`]
++  const line = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0 }) => {
++    return [`M${+x1} ${+y1}`, `L${+x2} ${+y2}`];
+   };
+ 
+   const poly = attrs => {
+     const { points } = attrs;
+     const pointsArray = points
+-    .trim()
+-    .split(' ')
++      .trim()
++      .split(' ')
+       .reduce((arr, point) => {
+-      return [...arr,  ...(point.includes(',') ? point.split(',') : point.trim() !== '' ? [point] : [])]
+-    }, []);
++        return [...arr, ...(point.includes(',') ? point.split(',') : point.trim() !== '' ? [point] : [])]
++      }, []);
+ 
+     const pairs = chunkArray(pointsArray, 2);
+     return pairs.map(([x, y], i) => {

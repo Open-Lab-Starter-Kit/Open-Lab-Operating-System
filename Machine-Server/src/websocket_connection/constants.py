@@ -1,5 +1,5 @@
 class WebsocketConstants:
-    TIMEOUT = 0.01  # 10 ms
+    TIMEOUT = 0.01  # 5 ms
 
     # priority constants for the priority queue
     HIGH_PRIORITY_COMMAND = 1

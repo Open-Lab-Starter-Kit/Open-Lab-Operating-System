@@ -1,11 +1,15 @@
+import imageWorker from 'src/workers/image.worker?worker&inline';
+import svgWorker from 'src/workers/svg.worker?worker&inline';
+import previewWorker from 'src/workers/preview.worker?worker&inline';
+
 export const getImageWorker = () => {
-  const url = new URL('./image.worker.ts', import.meta.url);
-  const worker = new Worker(url, { type: 'module' });
-  return worker;
+  return new imageWorker();
 };
 
 export const getSVGWorker = () => {
-  const url = new URL('./svg.worker.ts', import.meta.url);
-  const worker = new Worker(url, { type: 'module' });
-  return worker;
+  return new svgWorker();
+};
+
+export const getPreviewerWorker = () => {
+  return new previewWorker();
 };

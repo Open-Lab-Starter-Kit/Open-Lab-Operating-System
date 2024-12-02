@@ -1,18 +1,20 @@
 <template>
-  <div class="row col-4 items-center q-gutter-x-md">
+  <div class="row col items-center q-gutter-x-md">
     <span>Z</span>
-
     <q-slider
-      class="slider-width"
+      class="slider-width-z"
       v-model="zSliderValue"
       @change="store.setZJogStepSlider"
       markers
       :min="0"
-      :max="3"
+      :max="2"
       thumb-size="25px"
       :disable="isSliderDisabled()"
     />
-    <div class="row col-md col-sm-12 col-xs-12 flex-center q-gutter-x-sm">
+
+    <div
+      class="row col-md col-sm-12 col-xs-12 items-center justify-end q-gutter-x-sm q-pr-md"
+    >
       <span class="text-h8 text-bold">{{ zJogStep }} mm</span>
       <q-btn
         :icon="isCustomZStepValue ? 'close' : 'edit'"
@@ -73,3 +75,8 @@ const clearZStepCustomValue = () => {
   isCustomZStepValue.value = false;
 };
 </script>
+<style scoped>
+.slider-width-z {
+  max-width: 47.5%;
+}
+</style>

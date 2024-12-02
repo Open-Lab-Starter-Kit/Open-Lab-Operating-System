@@ -39,17 +39,17 @@ const store = useJogControlsStore();
 const { zJogStep, zJogSpeed } = storeToRefs(store);
 
 const ZJogUp = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
-  executeNormalGCommands('G1 Z' + zJogStep.value + ' F' + zJogSpeed.value * 60);
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
-};
-
-const ZJogDown = () => {
-  executeNormalGCommands(Constants.COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
   executeNormalGCommands(
     'G1 Z-' + zJogStep.value + ' F' + zJogSpeed.value * 60
   );
-  executeNormalGCommands(Constants.COMMAND_ABSOLUTE_POSITION);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
+};
+
+const ZJogDown = () => {
+  executeNormalGCommands(Constants.GRBL_COMMAND_RELATIVE_POSITION);
+  executeNormalGCommands('G1 Z' + zJogStep.value + ' F' + zJogSpeed.value * 60);
+  executeNormalGCommands(Constants.GRBL_COMMAND_ABSOLUTE_POSITION);
 };
 </script>
 <style scoped>

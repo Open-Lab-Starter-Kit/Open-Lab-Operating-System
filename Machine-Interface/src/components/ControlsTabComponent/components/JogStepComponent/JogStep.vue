@@ -12,13 +12,16 @@
       <span>100</span>
     </div>
     <div class="row justify-between col-9">
-      <div class="row justify-center col-1 icon-box">
+      <div class="row flex-center col-1">
         <x-y-lock-button :is-disabled="machineState !== Constants.IDLE" />
       </div>
-      <div class="column col q-pb-md">
+      <div class="column col justify-evenly">
         <x-step-slider :is-disabled="machineState !== Constants.IDLE" />
         <y-step-slider :is-disabled="machineState !== Constants.IDLE" />
-        <z-step-slider :is-disabled="machineState !== Constants.IDLE" />
+        <z-step-slider
+          v-if="config?.machine_type !== Constants.MACHINE_TYPE.VINYL_CUTTER"
+          :is-disabled="machineState !== Constants.IDLE"
+        />
       </div>
     </div>
   </div>
@@ -32,10 +35,15 @@ import XYLockButton from './components/XYLockButton.vue';
 import { storeToRefs } from 'pinia';
 import { Constants } from 'src/constants';
 import { useMachineStatusStore } from 'src/stores/machine-status';
+import { Config } from 'src/interfaces/configSettings.interface';
 
 const machineStatusStore = useMachineStatusStore();
 
 const { machineState } = storeToRefs(machineStatusStore);
+
+defineProps<{
+  config: Config | null;
+}>();
 </script>
 
 <style>
@@ -44,10 +52,6 @@ const { machineState } = storeToRefs(machineStatusStore);
   left: 13%;
   max-width: 67%;
   font-weight: bold;
-}
-.icon-box {
-  position: relative;
-  top: 20%;
 }
 .lock-style {
   font-size: 10px;

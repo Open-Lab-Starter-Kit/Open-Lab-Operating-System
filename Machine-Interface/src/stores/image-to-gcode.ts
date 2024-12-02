@@ -1,52 +1,84 @@
+import Konva from 'konva';
 import { defineStore } from 'pinia';
+import { QTableProps } from 'quasar';
 import { Constants } from 'src/constants';
 import {
-  DitheringSettings,
   DrawElement,
   GcodeFileSettings,
   SelectedElementType,
+  MainSettings,
+  ThicknessOperation,
+  EngravingSettings,
 } from 'src/interfaces/imageToGcode.interface';
+import API from 'src/services/API.service';
+import { configurationSettings } from 'src/services/configuration.loader.service';
 import {
   createImageFromImageData,
   drawImageOnOffscreenCanvas,
   getImageDataFromOffscreenCanvas,
 } from 'src/services/image.editor.service';
 import {
-  createSVGFromElements,
-  createSVGFromImageContent,
+  createSVGFromSVGContent,
+  prepareSVGElementsForEngraving,
 } from 'src/services/svg.editor.service';
-import { svgElementAttributes } from 'src/services/svg.parse.service';
+import {
+  elementsFilterByColor,
+  elementsFilterByShape,
+  svgElementAttributes,
+} from 'src/services/svg.parse.service';
 import { getImageWorker, getSVGWorker } from 'src/workers';
 import { INode } from 'svgson';
+import { shallowRef } from 'vue';
 
 export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
   state: () => ({
+    activeTab: '' as string,
     imageFile: null as File | null,
     imageContent: '' as string,
     svgElementsToModify: [] as DrawElement[],
-    gcodeSettings: {
-      dithering: {
-        type: Constants.DITHERING_ALGORITHMS.FLOYDSTEINBERG,
-        grayShift: 0,
-        blockSize: 0.5,
-        blockDistance: 0.1,
-      } as DitheringSettings,
-    } as GcodeFileSettings,
-    modifiedSVG: null as HTMLElement | null,
+    gcodeSettings: shallowRef<GcodeFileSettings>({
+      mainSettings: structuredClone(
+        Constants.DEFAULT_GCODE_GENERATOR_SETTINGS.MAIN_SETTINGS
+      ) as MainSettings,
+      cuttingSettings: structuredClone(
+        Constants.DEFAULT_GCODE_GENERATOR_SETTINGS.CUTTING_SETTINGS
+      ) as ThicknessOperation,
+      markingSettings: structuredClone(
+        Constants.DEFAULT_GCODE_GENERATOR_SETTINGS.MARKING_SETTINGS
+      ) as ThicknessOperation,
+      engravingSettings: structuredClone(
+        Constants.DEFAULT_GCODE_GENERATOR_SETTINGS.ENGRAVING_SETTINGS
+      ) as EngravingSettings,
+    }),
+    modifiedSVGCutting: null as SVGGraphicsElement | null,
+    modifiedSVGMarking: null as SVGGraphicsElement | null,
     modifiedImage: null as HTMLImageElement | null,
+    imageConfig: structuredClone(
+      Constants.DEFAULT_GCODE_GENERATOR_SETTINGS.IMAGE_CONFIGURATION
+    ) as Konva.ImageConfig,
     isCanvasLoading: false as boolean,
+
+    // table reactive states
+    mappingTable: null as QTableProps | null,
+    tableFilterType: 'shape' as string,
+    tableSelectedElements: [] as QTableProps['selected'],
+    tableProfileModels: {} as Record<string, string>,
+    tableProfileAllModels: Constants.PROFILE_ALL_OPTIONS.CUSTOM as string,
+    singleProfileOptions: Object.values(
+      Constants.PROFILE_OPTIONS
+    ) as Array<string>,
+    allProfileOptions: Object.values(
+      Constants.PROFILE_ALL_OPTIONS
+    ) as Array<string>,
   }),
   actions: {
-    async applySVGProfilingChanges(selectedElements: SelectedElementType[]) {
+    async applySVGChanges() {
       this.isCanvasLoading = true;
       // rest the image and svg elements because of one should be profiled
-      this.resetAllModifications();
-      // use Worker to prevent blocking the main thread
-      const worker = getSVGWorker();
-
-      // set all the svg elements that the user want to use
-      this.setsvgElementsToModify(selectedElements);
+      this.resetAllImageModifications();
       if (this.svgElementsToModify.length) {
+        // use Worker to prevent blocking the main thread
+        const worker = getSVGWorker();
         const data = await this.prepareSVGWorkerData();
         worker.postMessage(data);
         this.listenToWorkerResponse(worker);
@@ -55,15 +87,17 @@ export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
       }
     },
 
-    async applyImageProfilingChanges(profileType: string) {
+    async applyImageChanges() {
       this.isCanvasLoading = true;
       // rest the image and svg elements because of one should be profiled
-      this.resetAllModifications();
+      this.resetAllImageModifications();
       // use Worker to prevent blocking the main thread
       const worker = getImageWorker();
       if (
-        profileType === Constants.PROFILE_ALL_OPTIONS.CUT_EVERYTHING ||
-        profileType === Constants.PROFILE_ALL_OPTIONS.MARK_EVERYTHING
+        this.tableProfileAllModels ===
+          Constants.PROFILE_ALL_OPTIONS.CUT_EVERYTHING ||
+        this.tableProfileAllModels ===
+          Constants.PROFILE_ALL_OPTIONS.MARK_EVERYTHING
       ) {
         const data = await this.prepareImageWorkerData(
           Constants.IMAGE_DRAW_TYPE.CUT_MARK
@@ -73,7 +107,8 @@ export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
         // listen to worker response data
         this.listenToWorkerResponse(worker);
       } else if (
-        profileType === Constants.PROFILE_ALL_OPTIONS.ENGRAVE_EVERYTHING
+        this.tableProfileAllModels ===
+        Constants.PROFILE_ALL_OPTIONS.ENGRAVE_EVERYTHING
       ) {
         const data = await this.prepareImageWorkerData(
           Constants.IMAGE_DRAW_TYPE.ENGRAVE
@@ -88,7 +123,7 @@ export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
       }
     },
 
-    setsvgElementsToModify(selectedElements: SelectedElementType[]) {
+    setSvgElementsToModify(selectedElements: SelectedElementType[]) {
       // Iterate through the selected elements
       selectedElements.forEach((element) => {
         // Check if the element is being added or removed
@@ -136,13 +171,18 @@ export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
 
     async prepareImageWorkerData(drawType: string) {
       // draw image on offscreen canvas
-      const canvasElement = await drawImageOnOffscreenCanvas(this.imageContent);
+      const canvasElement = await drawImageOnOffscreenCanvas(
+        this.imageContent,
+        this.gcodeSettings.engravingSettings.dithering.resolution
+      );
       const imageData = getImageDataFromOffscreenCanvas(canvasElement);
 
       const imageWorkerData = {
         imageData,
         drawType,
-        dithering: JSON.stringify(this.gcodeSettings.dithering),
+        dithering: JSON.stringify(
+          this.gcodeSettings.engravingSettings.dithering
+        ),
       };
 
       return imageWorkerData;
@@ -150,50 +190,55 @@ export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
 
     async prepareSVGWorkerData() {
       // catagories the elements based on the profiling type
-      const cuttingAndMarkingElements: INode[] = [];
+      const cuttingElements: INode[] = [];
+      const markingElements: INode[] = [];
       const engravingElements: INode[] = [];
       this.svgElementsToModify.forEach((element: DrawElement) => {
         if (element.type === 'Engrave')
           engravingElements.push(...element.elements);
-        else cuttingAndMarkingElements.push(...element.elements);
+        else if (element.type === 'Cut')
+          cuttingElements.push(...element.elements);
+        else markingElements.push(...element.elements);
       });
+
       // sort the elements first based on their id
-      cuttingAndMarkingElements.sort(
+      cuttingElements.sort(
+        (a, b) => parseFloat(a.attributes.id) - parseFloat(b.attributes.id)
+      );
+      markingElements.sort(
         (a, b) => parseFloat(a.attributes.id) - parseFloat(b.attributes.id)
       );
       engravingElements.sort(
         (a, b) => parseFloat(a.attributes.id) - parseFloat(b.attributes.id)
       );
 
-      // create new svg element
-      const modifiedSvgContentForEngraving = createSVGFromElements(
+      const imageData = await prepareSVGElementsForEngraving(
         engravingElements,
-        svgElementAttributes
+        this.gcodeSettings.engravingSettings.dithering.resolution
       );
-
-      // After that draw svg on canvas to fetch the image data
-      const svgDataURL =
-        'data:image/svg+xml;base64,' + btoa(modifiedSvgContentForEngraving);
-      const canvasElement = await drawImageOnOffscreenCanvas(svgDataURL);
-      const imageData = getImageDataFromOffscreenCanvas(canvasElement);
-
       const svgWorkerData = {
         imageData,
         svgElementAttributes: JSON.stringify(svgElementAttributes),
-        elementsToCut: JSON.stringify(cuttingAndMarkingElements),
-        dithering: JSON.stringify(this.gcodeSettings.dithering),
+        elementsToCut: JSON.stringify(cuttingElements),
+        elementsToMark: JSON.stringify(markingElements),
+        dithering: JSON.stringify(
+          this.gcodeSettings.engravingSettings.dithering
+        ),
       };
-
       return svgWorkerData;
     },
 
     listenToWorkerResponse(worker: Worker) {
       // listen to the worker data
       worker.addEventListener('message', (e) => {
-        const { cutSVGContent, engravedImageData } = e.data;
+        const { cutSVGContent, markSVGContent, engravedImageData } = e.data;
         if (cutSVGContent) {
           // generate the cut svg element
-          this.modifiedSVG = createSVGFromImageContent(cutSVGContent);
+          this.modifiedSVGCutting = createSVGFromSVGContent(cutSVGContent);
+        }
+        if (markSVGContent) {
+          // generate the mark svg element
+          this.modifiedSVGMarking = createSVGFromSVGContent(markSVGContent);
         }
         if (engravedImageData) {
           // generate the engraved image element
@@ -203,9 +248,35 @@ export const useImageToGcodeConvertor = defineStore('imageToGcodeConvertor', {
       });
     },
 
-    resetAllModifications() {
+    resetAllImageModifications() {
       this.modifiedImage = null;
-      this.modifiedSVG = null;
+      this.modifiedSVGCutting = null;
+      this.modifiedSVGMarking = null;
+    },
+
+    resetMappingTable() {
+      // clear the profile models and selected elements
+      this.tableProfileModels = {};
+      this.tableSelectedElements = [];
+      this.tableProfileAllModels = Constants.PROFILE_ALL_OPTIONS.CUSTOM;
+      if (this.tableFilterType === Constants.SVG_ELEMENTS_FILTER.SHAPE) {
+        // fill it with cut values for all the shapes
+        elementsFilterByShape.forEach((element) => {
+          this.tableProfileModels[element.shape] =
+            Constants.PROFILE_OPTIONS.NOTHING;
+        });
+      } else if (this.tableFilterType === Constants.SVG_ELEMENTS_FILTER.COLOR) {
+        // fill it with cut values for all the shapes
+        elementsFilterByColor.forEach((element) => {
+          this.tableProfileModels[element.color] =
+            Constants.PROFILE_OPTIONS.NOTHING;
+        });
+      }
+    },
+    resetImageConfiguration() {
+      this.imageConfig = structuredClone(
+        Constants.DEFAULT_GCODE_GENERATOR_SETTINGS.IMAGE_CONFIGURATION
+      );
     },
   },
 });

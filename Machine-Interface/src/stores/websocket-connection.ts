@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia';
+import { handleJoystickData } from 'src/services/joystick.movement.service';
 import { Constants } from '../constants';
 import { useConsoleOutputStore } from './console-output';
 import { useDebuggerDialogStore } from './debugger-dialog';
-import { useFileManagementStore } from './file-management';
-import { useGcodePreview } from './gcode-preview';
+import { useJobsFilesManagementStore } from './jobs-files-management';
+import { useGcodePreviewStore } from './gcode-preview';
 import { useJobInfoStore } from './job-info';
 import { useMachineStatusStore } from './machine-status';
 import { useMessageOutputStore } from './message-output';
+import { useUSBMonitorStore } from './usb-monitor';
 
 export const useWebSocketStore = defineStore('websocket', {
   state: () => ({
@@ -15,9 +17,10 @@ export const useWebSocketStore = defineStore('websocket', {
     consoleOutputStore: useConsoleOutputStore(),
     jobInfoStore: useJobInfoStore(),
     messagesOutputStore: useMessageOutputStore(),
-    fileManagerStore: useFileManagementStore(),
+    jobManagerStore: useJobsFilesManagementStore(),
     debuggerStore: useDebuggerDialogStore(),
-    gcodePreviewStore: useGcodePreview(),
+    gcodePreviewStore: useGcodePreviewStore(),
+    usbMonitorStore: useUSBMonitorStore(),
   }),
 
   actions: {
@@ -50,35 +53,46 @@ export const useWebSocketStore = defineStore('websocket', {
       };
 
       this.connection.onerror = (error) => {
-        console.error('WebSocket error:', error);
         this.messagesOutputStore.updateMessageBasedOnStatus(
           Constants.DISCONNECTED
         );
+        console.error('WebSocket error:', error);
       };
 
-      this.connection.onmessage = (event: MessageEvent) => {
+      this.connection.onmessage = async (event: MessageEvent) => {
         const res = JSON.parse(event.data);
         if (res.type === Constants.MACHINE_STATUS_DATA_TYPE) {
           this.machineStatusStore.updateStatus(res);
           this.messagesOutputStore.updateMessageBasedOnStatus(res.state);
-        } else if (res.type === Constants.FILE_EXECUTION_DATA_TYPE) {
+        } else if (res.type === Constants.MACHINE_CONNECTION_DATA_TYPE) {
+          this.machineStatusStore.updateConnectionStatus(res);
+          if (res.success) {
+            this.messagesOutputStore.updateMessageBasedOnStatus(
+              Constants.CONNECTING
+            );
+          } else {
+            this.messagesOutputStore.updateMessageBasedOnStatus(
+              Constants.DISCONNECTED
+            );
+          }
+        } else if (res.type === Constants.JOB_EXECUTION_DATA_TYPE) {
           this.jobInfoStore.updateJobProgress(res.line_index, res.total_lines);
           this.jobInfoStore.updateJobTimer(res.file_timer);
           this.consoleOutputStore.addText(res);
+          await this.gcodePreviewStore.drawExecutedGcodeLine();
         } else if (res.type === Constants.SERIAL_COMMAND_DATA_TYPE) {
           this.consoleOutputStore.addText(res);
           this.messagesOutputStore.checkReceivedMessage(res.text);
         } else if (res.type === Constants.NORMAL_COMMAND_DATA_TYPE) {
           this.consoleOutputStore.addText(res);
-        } else if (res.type === Constants.MACHINE_CONNECTION_DATA_TYPE) {
-          this.machineStatusStore.updateConnectionStatus(res);
-          this.messagesOutputStore.updateMessageBasedOnStatus(
-            Constants.DISCONNECTED
-          );
-        } else if (res.type === Constants.FILE_MANAGER_DATA_TYPE) {
-          this.fileManagerStore.updateFileManagerStatus(res);
+        } else if (res.type === Constants.JOBS_MANAGER_DATA_TYPE) {
+          this.jobManagerStore.updateFileManagerStatus(res);
         } else if (res.type === Constants.CAMERAS_SYSTEM_DATA_TYPE) {
           this.gcodePreviewStore.setCameraFrame(res);
+        } else if (res.type === Constants.JOYSTICK_STATUS_DATA_TYPE) {
+          handleJoystickData(res);
+        } else if (res.type === Constants.USB_STORAGE_MONITOR_DATA_TYPE) {
+          this.usbMonitorStore.updateUSBMonitorStatus(res);
         }
       };
     },

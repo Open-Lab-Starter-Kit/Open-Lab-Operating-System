@@ -11,10 +11,10 @@
           ]"
           style="font-size: x-large; border: dotted 1px"
         >
-          {{ previewState.clampedX }}
+          {{ xJobStartingValue.toFixed(2) }}
 
           <q-popup-edit
-            v-model="previewState.clampedX"
+            v-model="xJobStartingValue"
             buttons
             label-set="Save"
             label-cancel="Close"
@@ -25,7 +25,6 @@
             <q-input
               type="number"
               v-model.number="scope.value"
-              hint="Enter a number between 0 and 1000"
               :error="errorXAxis"
               :error-message="errorXAxisMessage"
               dense
@@ -48,10 +47,10 @@
           ]"
           style="font-size: x-large; border: dotted 1px"
         >
-          {{ previewState.clampedY }}
+          {{ yJobStartingValue.toFixed(2) }}
 
           <q-popup-edit
-            v-model="previewState.clampedY"
+            v-model="yJobStartingValue"
             buttons
             label-set="Save"
             label-cancel="Close"
@@ -62,7 +61,6 @@
             <q-input
               type="number"
               v-model.number="scope.value"
-              hint="Enter a number between 0 and 600"
               :error="errorYAxis"
               :error-message="errorYAxisMessage"
               dense
@@ -81,15 +79,19 @@
 <script setup lang="ts">
 import { useMachineStatusStore } from 'src/stores/machine-status';
 import { Constants } from 'src/constants';
-import { useGcodePreview } from 'src/stores/gcode-preview';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
-
-const gcodePreviewStore = useGcodePreview();
-const { previewState } = storeToRefs(gcodePreviewStore);
+import {
+  xJobStartingValue,
+  yJobStartingValue,
+} from 'src/services/draw.gcode.service/draw.gcode.2D.service';
+import { Config } from 'src/interfaces/configSettings.interface';
 
 const machineStatusStore = useMachineStatusStore();
 const { machineState } = storeToRefs(machineStatusStore);
+const props = defineProps<{
+  config: Config | null;
+}>();
 
 // validation
 const errorXAxis = ref(false);
@@ -98,9 +100,14 @@ const errorXAxisMessage = ref('');
 const errorYAxisMessage = ref('');
 
 const XAxisRangeValidation = (val: string) => {
-  if (parseFloat(val) < 0 || parseFloat(val) > 1000 || val === '') {
+  if (
+    props.config &&
+    (parseFloat(val) < props.config?.machine_platform.start_point.x ||
+      parseFloat(val) > props.config?.machine_platform.end_point.x ||
+      val === '')
+  ) {
     errorXAxis.value = true;
-    errorXAxisMessage.value = 'The value must be between 0 and 1000!';
+    errorXAxisMessage.value = `The value must be between ${props.config?.machine_platform.start_point.x} and ${props.config?.machine_platform.end_point.x}!`;
     return false;
   }
   errorXAxis.value = false;
@@ -109,9 +116,14 @@ const XAxisRangeValidation = (val: string) => {
 };
 
 const YAxisRangeValidation = (val: string) => {
-  if (parseFloat(val) < 0 || parseFloat(val) > 600 || val === '') {
+  if (
+    props.config &&
+    (parseFloat(val) > props.config?.machine_platform.start_point.y ||
+      parseFloat(val) < props.config?.machine_platform.end_point.y ||
+      val === '')
+  ) {
     errorYAxis.value = true;
-    errorYAxisMessage.value = 'The value must be between 0 and 600!';
+    errorYAxisMessage.value = `The value must be between ${props.config?.machine_platform.start_point.y} and ${props.config?.machine_platform.end_point.y}!`;
     return false;
   }
   errorYAxis.value = false;
@@ -120,11 +132,11 @@ const YAxisRangeValidation = (val: string) => {
 };
 
 const sanitizeInput = (event: KeyboardEvent) => {
-  if (['e', 'E', '+', '-'].includes(event.key)) {
+  if (['e', 'E', '+'].includes(event.key)) {
     event.preventDefault();
   }
   // Regular expression to match numbers with up to 4 real numbers and 1 decimal
-  const regex = /^\d{0,4}(\.\d{0,1})?$/;
+  const regex = /^-?\d{0,3}(\.\d{0,1})?$/;
   const target = event.target as HTMLInputElement;
   const isValid = regex.test(target.value);
 

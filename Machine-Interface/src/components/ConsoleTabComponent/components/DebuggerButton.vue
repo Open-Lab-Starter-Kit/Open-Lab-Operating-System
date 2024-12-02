@@ -5,7 +5,7 @@
     size="lg"
     color="primary"
     class="self-end"
-    @click="store.showDebuggerDialog"
+    @click="debuggerDialogStore.showDebuggerDialog"
   >
     <q-tooltip>Open Debugger</q-tooltip>
   </q-btn>
@@ -14,7 +14,7 @@
 <script setup lang="ts">
 import { useDebuggerDialogStore } from 'src/stores/debugger-dialog';
 
-const store = useDebuggerDialogStore();
+const debuggerDialogStore = useDebuggerDialogStore();
 </script>
 
 <style scoped>

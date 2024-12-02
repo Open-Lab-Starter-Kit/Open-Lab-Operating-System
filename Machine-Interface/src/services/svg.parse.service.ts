@@ -41,7 +41,10 @@ export const filterSvgElements = (
 
     // check if the element contains children elements and try to filter its elements
     if (childElement.children.length) {
-      filterSvgElements(childElement, childElement.attributes);
+      filterSvgElements(childElement, {
+        ...attributes,
+        ...childElement.attributes,
+      });
     }
   });
 };

@@ -1,19 +1,22 @@
 import { defineStore } from 'pinia';
-import { Dialog } from 'quasar';
 import { Constants } from 'src/constants';
+import { createDialogComponent } from 'src/services/dialog.messages.service';
 import { useDebuggerDialogStore } from './debugger-dialog';
 
 export const useMessageOutputStore = defineStore('messagesOutput', {
   state: () => ({
-    state: Constants.DISCONNECTED as string,
+    state: Constants.CONNECTING as string,
     debuggerStore: useDebuggerDialogStore(),
-    smallMessage: Constants.SMALL_MESSAGES.DISCONNECTED_MESSAGE as string,
-    messageTitle: Constants.DISCONNECTED as string,
-    messageBody: Constants.LONG_MESSAGES.DISCONNECTED_MESSAGE as string,
+    smallMessage: Constants.SMALL_MESSAGES.CONNECTING_MESSAGE as string,
+    messageTitle: Constants.CONNECTING as string,
+    messageBody: Constants.LONG_MESSAGES.CONNECTING_MESSAGE as
+      | string
+      | string[],
     alarmCode: 0 as number,
     errorCode: 0 as number,
     isError: false as boolean,
-    isAlertDialogShown: false as boolean,
+    isAlarmDialogShown: false as boolean,
+    isDisconnectDialogShown: false as boolean,
   }),
   actions: {
     checkReceivedMessage(text: string) {
@@ -28,7 +31,6 @@ export const useMessageOutputStore = defineStore('messagesOutput', {
         this.errorCode = parseInt(errorMatches[1]);
         this.isError = true;
       }
-      this.isAlertDialogShown = false;
     },
     updateMessageBasedOnStatus(state: string) {
       if (state !== this.state) {
@@ -44,8 +46,7 @@ export const useMessageOutputStore = defineStore('messagesOutput', {
         const code = this.errorCode;
         this.messageTitle = Constants.ERROR + ' ' + code;
         // show dialog
-        !this.isAlertDialogShown &&
-          this.showAlertDialog(Constants.ERROR, this.errorCode);
+        this.showDialog(Constants.ERROR, this.errorCode);
 
         // add to debugger
         this.debuggerStore.addLog(
@@ -64,8 +65,12 @@ export const useMessageOutputStore = defineStore('messagesOutput', {
         this.messageBody = Constants.LONG_MESSAGES.DISCONNECTED_MESSAGE;
 
         // if the machine still disconnected
-        !this.isAlertDialogShown &&
-          this.showAlertDialog(Constants.DISCONNECTED);
+        !this.isDisconnectDialogShown &&
+          this.showDialog(Constants.DISCONNECTED);
+      } else if (this.state === Constants.CONNECTING) {
+        this.messageTitle = Constants.CONNECTING;
+        this.smallMessage = Constants.SMALL_MESSAGES.CONNECTING_MESSAGE;
+        this.messageBody = Constants.LONG_MESSAGES.CONNECTING_MESSAGE;
       }
     },
     checkMachineState() {
@@ -77,6 +82,14 @@ export const useMessageOutputStore = defineStore('messagesOutput', {
         this.messageTitle = Constants.IDLE;
         this.smallMessage = Constants.SMALL_MESSAGES.IDLE_MESSAGE;
         this.messageBody = Constants.LONG_MESSAGES.IDLE_MESSAGE;
+      } else if (this.state === Constants.DOOR) {
+        this.messageTitle = Constants.DOOR;
+        this.smallMessage = Constants.SMALL_MESSAGES.DOOR_MESSAGE;
+        this.messageBody = Constants.LONG_MESSAGES.DOOR_MESSAGE;
+      } else if (this.state === Constants.HOMING) {
+        this.messageTitle = Constants.HOMING;
+        this.smallMessage = Constants.SMALL_MESSAGES.HOMING_MESSAGE;
+        this.messageBody = Constants.LONG_MESSAGES.HOMING_MESSAGE;
       } else if (this.state === Constants.RUN) {
         this.messageTitle = Constants.RUN;
         this.smallMessage = Constants.SMALL_MESSAGES.RUN_MESSAGE;
@@ -84,8 +97,8 @@ export const useMessageOutputStore = defineStore('messagesOutput', {
       } else if (this.state === Constants.ALARM) {
         const code = this.alarmCode;
         this.messageTitle = Constants.ALARM + ' ' + code;
-        !this.isAlertDialogShown &&
-          this.showAlertDialog(Constants.ALARM, this.alarmCode);
+        !this.isAlarmDialogShown &&
+          this.showDialog(Constants.ALARM, this.alarmCode);
         this.smallMessage = Constants.SMALL_MESSAGES.ALARM_MESSAGE;
         this.messageBody =
           Constants.LONG_MESSAGES.ALARM_MESSAGES[this.alarmCode];
@@ -98,73 +111,24 @@ export const useMessageOutputStore = defineStore('messagesOutput', {
         this.messageBody
       );
     },
-    showAlertDialog(type: string, code = 0) {
-      // use debugger dialog store
-      const store = useDebuggerDialogStore();
-
-      this.isAlertDialogShown = true;
+    showDialog(type: string, code = 0) {
       if (type === Constants.ERROR) {
-        Dialog.create({
-          title: type + ' ' + code,
-          message: Constants.LONG_MESSAGES.ERROR_MESSAGES[code],
-          persistent: true,
-          noEscDismiss: true,
-          color: 'primary',
-          ok: {
-            label: 'Open Debugger',
-            flat: true,
-          },
-          cancel: {
-            label: 'OK',
-            flat: true,
-          },
-        })
-          .onOk(() => {
-            store.showDebuggerDialog();
-            this.isAlertDialogShown = false;
-          })
-          .onCancel(() => {
-            this.isAlertDialogShown = false;
-          });
+        createDialogComponent(type, 'Open Debugger', 'OK', code).onOk(() => {
+          this.debuggerStore.showDebuggerDialog();
+        });
       } else if (type === Constants.ALARM) {
-        Dialog.create({
-          title: type + ' ' + code,
-          message: Constants.LONG_MESSAGES.ALARM_MESSAGES[code],
-          persistent: true,
-          color: 'primary',
-          noEscDismiss: true,
-          ok: {
-            label: 'Open Debugger',
-            flat: true,
-          },
-          cancel: {
-            label: 'OK',
-            flat: true,
-          },
-        })
+        this.isAlarmDialogShown = true;
+        createDialogComponent(type, 'Open Debugger', 'OK', code)
           .onOk(() => {
-            store.showDebuggerDialog();
+            this.debuggerStore.showDebuggerDialog();
           })
           .onCancel(() => {
-            this.isAlertDialogShown = false;
+            this.isAlarmDialogShown = false;
           });
       } else if (type === Constants.DISCONNECTED) {
-        Dialog.create({
-          title: type,
-          message: Constants.LONG_MESSAGES.DISCONNECTED_MESSAGE,
-          persistent: true,
-          noEscDismiss: true,
-          ok: {
-            label: 'Retry',
-            flat: true,
-          },
-        }).onOk(() => {
-          if (this.state !== Constants.DISCONNECTED) {
-            this.isAlertDialogShown = false;
-          } else {
-            this.isAlertDialogShown = true;
-            this.showAlertDialog(type);
-          }
+        this.isDisconnectDialogShown = true;
+        createDialogComponent(type, 'Retry').onOk(() => {
+          location.reload();
         });
       }
     },

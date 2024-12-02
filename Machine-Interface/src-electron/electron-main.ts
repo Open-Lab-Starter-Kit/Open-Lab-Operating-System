@@ -1,7 +1,6 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session } from 'electron';
 import path from 'path';
 import os from 'os';
-import { execFile } from 'child_process';
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform();
@@ -20,6 +19,7 @@ function createWindow() {
     fullscreen: true,
     useContentSize: false,
     webPreferences: {
+      nodeIntegrationInWorker: true,
       contextIsolation: true,
       // More info: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/electron-preload-script
       preload: path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD),
@@ -43,36 +43,18 @@ function createWindow() {
   });
 }
 
-function startPythonServer() {
-  const pythonServer = execFile(path.resolve(__dirname, 'bin/OLOS_Server.exe'));
-  if (pythonServer.stdout) {
-    pythonServer.stdout.on('data', (data) => {
-      console.log(`Python Server Output: ${data}`);
-    });
-  }
-  if (pythonServer.stderr) {
-    pythonServer.stderr.on('data', (data) => {
-      console.error(`Python Server Error: ${data}`);
-    });
-  }
-  pythonServer.on('close', (code) => {
-    console.log(`Python Server exited with code ${code}`);
+app.whenReady().then(() => {
+  createWindow();
+  // Listen to download events
+  session.defaultSession.on('will-download', (event, item, webContents) => {
+    // Set the save path without user prompt
+    const filePath = path.join(app.getPath('downloads'), item.getFilename());
+    item.setSavePath(filePath);
   });
-}
-
-app.whenReady().then(createWindow);
+});
 
 app.on('window-all-closed', () => {
   if (platform !== 'darwin') {
     app.quit();
-  }
-});
-app.on('ready', () => {
-  startPythonServer();
-});
-
-app.on('activate', () => {
-  if (mainWindow === undefined) {
-    createWindow();
   }
 });

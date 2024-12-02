@@ -58,7 +58,7 @@
 
     <q-page-container>
       <router-view />
-      <machine-debugger />
+      <full-screen-dialogs />
     </q-page-container>
   </q-layout>
 </template>
@@ -69,7 +69,7 @@ import { ref } from 'vue';
 import Tabs from '../components/TabsComponent.vue';
 import MachineLogo from '../components/MachineLogoComponent.vue';
 import MainControls from 'src/components/MainControlsComponent/MainControlsComponent.vue';
-import MachineDebugger from 'src/components/MachineDebugger.vue';
+import FullScreenDialogs from 'src/components/FullScreenDialogs/FullScreenDialogs.vue';
 
 const $q = useQuasar();
 // drawer events
@@ -79,7 +79,7 @@ const rightDrawer = ref(false);
 // Check the screen size on mount
 const isMobile = ref(false);
 
-if ($q.screen.lt.sm) {
+if ($q.screen.lt.md) {
   isMobile.value = true;
   leftDrawer.value = true;
   rightDrawer.value = true;

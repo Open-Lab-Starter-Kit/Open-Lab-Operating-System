@@ -1,8 +1,6 @@
 import { Constants } from 'src/constants';
 import { useWebSocketStore } from 'src/stores/websocket-connection';
 
-const store = useWebSocketStore();
-
 export const executeRealTimeGCommands = (command: string) => {
   // send to server using websocket
   const req = {
@@ -11,7 +9,7 @@ export const executeRealTimeGCommands = (command: string) => {
       command,
     },
   };
-  store.send(req);
+  useWebSocketStore().send(req);
 };
 
 // Do not require a real time execution
@@ -23,5 +21,5 @@ export const executeNormalGCommands = (command: string) => {
       command,
     },
   };
-  store.send(req);
+  useWebSocketStore().send(req);
 };

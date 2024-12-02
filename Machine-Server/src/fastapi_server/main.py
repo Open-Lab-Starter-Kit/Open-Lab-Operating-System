@@ -1,13 +1,16 @@
 from multiprocessing import Process
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn import run
-
-from .services.file_manager_service import FileManagerService
 from .constants import FastAPIServerConstants as constants
-from .api.file_manager_api import router as file_manager_router
+from .api.jobs_manager_api import router as jobs_manager_router
+from .api.images_manager_api import router as images_manager_router
+from .api.ai_api import router as ai_router
+from .api.material_library_api import router as material_library_router
+import os
+from dotenv import load_dotenv
 
-from decouple import config
+load_dotenv()
 
 
 class FastApiServer(Process):
@@ -22,7 +25,7 @@ class FastApiServer(Process):
 
     def run(self):
         # share file manager service
-        self.app = FastAPI()
+        self.app = FastAPI(title="OLOS API")
 
         # add shared data to the application request
         self.app.shared_core_data = self.shared_core_data
@@ -44,14 +47,20 @@ class FastApiServer(Process):
 
         # Include routers
         self.app.include_router(
-            file_manager_router, prefix=constants.FILE_MANAGER_ROUTE)
+            jobs_manager_router, prefix=constants.JOBS_MANAGER_ROUTE)
+        self.app.include_router(
+            images_manager_router, prefix=constants.IMAGES_MANAGER_ROUTE)
+        self.app.include_router(
+            ai_router, prefix=constants.AI_ROUTE)
+        self.app.include_router(
+            material_library_router, prefix=constants.MATERIAL_LIBRARY_ROUTE)
 
     def start_server(self):
         # Run the FastAPI app using Uvicorn
         run(
             self.app,
-            host=config('HOST'),
-            port=int(config('FASTAPI_PORT')),
-            log_level="debug" if config(
+            host=os.getenv('HOST'),
+            port=int(os.getenv('FASTAPI_PORT')),
+            log_level="debug" if os.getenv(
                 'ENV') == 'development' else "warning",
         )

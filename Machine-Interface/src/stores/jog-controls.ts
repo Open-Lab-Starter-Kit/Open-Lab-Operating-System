@@ -6,7 +6,7 @@ const speedChoices = { slow: 10, normal: 50, fast: 200 };
 export const useJogControlsStore = defineStore('jogControls', {
   state: () => ({
     jobProgress: 0,
-    isXYLocked: false as boolean,
+    isXYLocked: true as boolean,
     isCustomXStepValue: false as boolean,
     isCustomYStepValue: false as boolean,
     isCustomZStepValue: false as boolean,

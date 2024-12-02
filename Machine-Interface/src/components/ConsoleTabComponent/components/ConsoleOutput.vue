@@ -3,7 +3,7 @@
     <div class="row justify-around items-center sticky-header">
       <q-toggle
         v-model="showExecutionTime"
-        label="Show Execution Time"
+        label="Show Timestamps"
         style="font-size: 15px"
         name="showTime"
       />
@@ -11,14 +11,16 @@
     </div>
     <q-virtual-scroll
       :items="consoleTextList"
-      :item-size="50"
       ref="scrollAreaRef"
       :bar-style="{ borderRadius: '5px', background: 'brown' }"
-      class="scroll-area q-mb-lg"
-      @virtual-scroll="onVirtualScroll"
+      class="scroll-area q-mb-lg bg-blue-grey-1"
+      @virtual-scroll="onScroll"
+      @pointerdown.prevent="handlePointerScroll"
+      virtual-scroll-slice-size="100"
+      :items-size="10"
     >
       <template v-slot="{ item }">
-        <div class="q-pa-md">
+        <div class="q-pa-xs">
           <span v-if="showExecutionTime">{{ item.time }} -</span>
           {{ item.text }}
         </div>
@@ -28,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useConsoleOutputStore } from 'src/stores/console-output';
 import { QVirtualScroll } from 'quasar';
@@ -36,33 +38,34 @@ import { QVirtualScroll } from 'quasar';
 const store = useConsoleOutputStore();
 const { consoleTextList, showExecutionTime } = storeToRefs(store);
 const scrollAreaRef = ref<QVirtualScroll | null>(null);
-const autoScrollEnabled = ref(true);
+const autoScroll = ref(false);
 
-// when the page mounted scroll to the end
-onMounted(() => {
-  if (scrollAreaRef.value) {
-    scrollAreaRef.value.scrollTo(consoleTextList.value.length);
-  }
-});
+const handlePointerScroll = () => {
+  autoScroll.value = false;
+};
 
 const clearScrollArea = () => store.clearExecutedCommandsList();
 
-const onVirtualScroll = ({ index }: { index: number }) => {
-  // If the user is at the bottom of the scroll area
-  if (index < consoleTextList.value.length - 10) {
-    // User is not at the bottom, disable auto-scrolling
-    autoScrollEnabled.value = false;
-  } else {
+const onScroll = ({ index }: { index: number }) => {
+  if (
+    (scrollAreaRef.value && autoScroll.value) ||
+    index >= consoleTextList.value.length - 20
+  ) {
     // User is at the bottom, enable auto-scrolling
-    autoScrollEnabled.value = true;
+    scrollToBottom();
   }
 };
 
-watch(consoleTextList.value, () => {
-  // If auto-scrolling is enabled, scroll to the bottom
-  if (autoScrollEnabled.value && scrollAreaRef.value) {
+const scrollToBottom = () => {
+  if (scrollAreaRef.value) {
+    autoScroll.value = true;
     scrollAreaRef.value.scrollTo(consoleTextList.value.length);
   }
+};
+
+// when the page mounted scroll to the end
+onMounted(() => {
+  scrollToBottom();
 });
 </script>
 
@@ -76,5 +79,10 @@ watch(consoleTextList.value, () => {
   top: 0;
   z-index: 1;
   padding: 10px;
+}
+.scroll-btn {
+  position: fixed;
+  right: 25px;
+  bottom: 10px;
 }
 </style>

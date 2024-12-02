@@ -3,8 +3,12 @@ import time
 import cv2
 from multiprocessing import Pipe, Process
 
-from camera_stream.stream import CameraStream
-from stitching import AffineStitcher
+import numpy as np
+
+from utils.configuration_loader import ConfigurationLoader
+from utils.camera_stream import CameraStream
+from stitching import Stitcher
+from .constants import CameraConstants as constants
 
 
 class CamerasSystem(Process):
@@ -16,74 +20,129 @@ class CamerasSystem(Process):
 
     def run(self):
         try:
+            config = ConfigurationLoader.from_yaml()
             # Disable OpenCL in OpenCV
             cv2.ocl.setUseOpenCL(False)
 
-            first_end_pip_camera_1, second_end_pipe_camera_1 = Pipe()
-            first_end_pip_camera_2, second_end_pipe_camera_2 = Pipe()
+            camera_pipes = []
+            camera_streams = []
 
-            first_camera_stream = CameraStream(
-                index=0, pipe_end=second_end_pipe_camera_1)
-            second_camera_stream = CameraStream(
-                index=1, pipe_end=second_end_pipe_camera_2)
+            for index in config.cameras_connection.cameras_port_index:
+                first_end_pipe, second_end_pipe = Pipe()
+                camera_pipes.append(first_end_pipe)
+                camera_stream = CameraStream(
+                    index=index, pipe_end=second_end_pipe)
+                camera_streams.append(camera_stream)
+                camera_stream.start()
 
-            first_camera_stream.start()
-            second_camera_stream.start()
-
-            affine_stitcher = AffineStitcher(confidence_threshold=0)
-
-            while True:
-                first_camera_frame = first_end_pip_camera_1.recv()
-                second_camera_frame = first_end_pip_camera_2.recv()
-
-                if not first_camera_frame.any() or not second_camera_frame.any():
-                    print("Error: Could not read frames from cameras")
-                    break
-
-                # adjust the frames to match color
-                adjusted_frames = self.matching_frames(
-                    (second_camera_frame, first_camera_frame))
-
-                # convert the frame to string to send to the interface
-                stitched_frame = self.convert_frame_to_string(affine_stitcher.stitch(
-                    adjusted_frames))
-
-                # add to the queue shared with the core
-                self.add_to_cameras_system_read_queue(stitched_frame)
-
-            cv2.destroyAllWindows()
+            # use stitching incase of multiple cameras
+            if (len(camera_streams) > 1 and
+                    config.cameras_connection.stitching_settings.stitching_enabled):
+                self._handle_cameras_using_stitching(camera_pipes, config)
+            # incase of multiple cameras without stitching
+            elif (len(camera_streams) > 1 and
+                  not config.cameras_connection.stitching_settings.stitching_enabled):
+                self._handle_cameras_without_stitching(camera_pipes)
+            # one camera
+            elif len(camera_streams) == 1:
+                self._handle_one_camera(camera_pipes)
 
         except Exception as Error:
             print("Error in the camera system", Error)
-            first_camera_stream.terminate()
-            first_camera_stream.join()
-            second_camera_stream.terminate()
-            second_camera_stream.join()
-            self.reconnect_cameras()
+            for stream in camera_streams:
+                stream.terminate()
+                stream.join()
+            self._reconnect_cameras()
 
-    # this function will match the brightness and contrast for both frames
-    def matching_frames(self, frames):
-        (frame1, frame2) = frames
+    def _handle_cameras_using_stitching(self, camera_pipes, config):
+        algorithm_settings = config.get_dict(
+            'cameras_connection.stitching_settings.algorithm_settings')
 
-        # Separate the frames into individual color channels
-        b, g, r = cv2.split(frame1)
-        b2, g2, r2 = cv2.split(frame2)
+        stitcher = Stitcher(
+            **algorithm_settings)
 
-        # Apply histogram matching to each channel of frame1 to match frame2
-        b_matched = cv2.equalizeHist(b)
-        g_matched = cv2.equalizeHist(g)
-        r_matched = cv2.equalizeHist(r)
-        b2_matched = cv2.equalizeHist(b2)
-        g2_matched = cv2.equalizeHist(g2)
-        r2_matched = cv2.equalizeHist(r2)
+        while True:
+            frames = [pipe.recv() for pipe in camera_pipes]
 
-        # Merge the color channels back together
-        matched_frame1 = cv2.merge((b_matched, g_matched, r_matched))
-        matched_frame2 = cv2.merge((b2_matched, g2_matched, r2_matched))
+            if not all(frame.any() for frame in frames):
+                print("Error: Could not read frames from cameras")
+                break
 
-        return [matched_frame2, matched_frame1]
+            # calibrate frames
+            adjusted_frames = []
 
-    def convert_frame_to_string(self, frame):
+            for i, frame in enumerate(frames):
+                adjusted_frame = cv2.undistort(frame,
+                                               np.array(
+                                                   config.cameras_connection.stitching_settings.cameras_calibration_settings.cameras_matrix[i]),
+                                               np.array(
+                                                   config.cameras_connection.stitching_settings.cameras_calibration_settings.cameras_coeffs[i]),
+                                               None,
+                                               np.array(config.cameras_connection.stitching_settings.cameras_calibration_settings.cameras_matrix[i]))
+                adjusted_frames.append(adjusted_frame)
+
+            # Define the dimensions of the patterned strip
+
+            strip_width = adjusted_frames[0].shape[1]
+
+            # Create the patterned strip
+            patterned_strip = self._create_patterned_strip(
+                strip_width, config.cameras_connection.stitching_settings.frames_strip_height)
+            # Combine the patterned strip with the frame
+            frames_with_strip = [
+                np.concatenate((patterned_strip, frame, patterned_strip), axis=0) for frame in adjusted_frames]
+
+            # convert the frame to string to send to the interface
+            stitched_frame = stitcher.stitch(frames_with_strip)
+            stitched_frame = stitched_frame[config.cameras_connection.stitching_settings.frames_strip_height:-
+                                            config.cameras_connection.stitching_settings.frames_strip_height]
+            # Remove the unwanted edges from the frames
+            stitched_frame = stitched_frame[:,
+                                            config.cameras_connection.stitching_settings.start_strip_width:
+                                            config.cameras_connection.stitching_settings.end_strip_width]
+
+            frame_str = self._convert_frame_to_string(
+                stitched_frame)
+
+            # add to the queue shared with the core
+            self._add_to_cameras_system_read_queue(frame_str)
+            time.sleep(constants.TIMEOUT)
+
+    def _handle_cameras_without_stitching(self, camera_pips):
+        while True:
+            frames = [pipe.recv() for pipe in camera_pips]
+            frame = np.concatenate(frames, axis=1)
+            frame_str = self._convert_frame_to_string(frame)
+
+            # add to the queue shared with the core
+            self._add_to_cameras_system_read_queue(frame_str)
+            time.sleep(constants.TIMEOUT)
+
+    def _handle_one_camera(self, camera_pipes):
+        while True:
+            frame = camera_pipes[0].recv()
+            frame_str = self._convert_frame_to_string(frame)
+
+            # add to the queue shared with the core
+            self._add_to_cameras_system_read_queue(frame_str)
+            time.sleep(constants.TIMEOUT)
+
+    def _create_patterned_strip(self, width, height, direction='left', dot_size=3, dot_spacing=10, ):
+        strip = np.ones((height, width), dtype=np.uint8) * \
+            255  # White background
+        width_range = range(
+            width-height, width, dot_spacing) if direction == 'left' else range(0, height + 180, dot_spacing)
+        # Add black dots
+        for y in range(0, height, dot_spacing):
+            for x in width_range:
+                cv2.circle(strip, (x, y), dot_size, (0, 0, 0), -1)
+
+        strip = np.repeat(np.expand_dims(strip, axis=2), 3, axis=2)
+
+        return strip
+
+    def _convert_frame_to_string(self, frame):
+
         # Convert frame to JPEG format
         _, buffer = cv2.imencode('.jpg', frame)
         # Convert the frame to base64 string
@@ -93,10 +152,10 @@ class CamerasSystem(Process):
 
     # add new message to the serial read queue
 
-    def add_to_cameras_system_read_queue(self, frame):
+    def _add_to_cameras_system_read_queue(self, frame):
         self.cameras_system_data.cameras_read_queue.put(frame)
 
-    def reconnect_cameras(self):
+    def _reconnect_cameras(self):
         print('Trying to connect to cameras...')
         time.sleep(5)
         # retry to run the process again

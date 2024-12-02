@@ -62,7 +62,7 @@ const formatTime = computed(() => {
 const checkProgressBarColor = (state: string) => {
   switch (state) {
     case Constants.IDLE:
-      progressColor.value = 'light-blue-3';
+      progressColor.value = 'light-blue-2';
       break;
     case Constants.RUN:
       progressColor.value = 'light-green-4';
@@ -71,7 +71,13 @@ const checkProgressBarColor = (state: string) => {
       progressColor.value = 'red-4';
       break;
     case Constants.HOLD:
-      progressColor.value = 'yellow';
+      progressColor.value = 'yellow-4';
+      break;
+    case Constants.DOOR:
+      progressColor.value = 'orange-3';
+      break;
+    case Constants.HOMING:
+      progressColor.value = 'purple-2';
       break;
     case Constants.DISCONNECTED:
       progressColor.value = 'white';

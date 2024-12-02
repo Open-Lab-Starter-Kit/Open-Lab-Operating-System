@@ -1,0 +1,133 @@
+# List of supported machine names
+# - Laser Cutter
+# - cnc
+# - Vinyl Cutter
+# - 3D Scanner
+machine_type: Laser Cutter
+
+machine_bed_size:
+  width: 1000
+  height: 600
+
+cameras_connection:
+  cameras_enabled: true
+  cameras_port_index: # left to right
+    - 0
+    - 1
+
+  stitching_settings: # incase of 2 or more cameras settings
+    stitching_enabled: false
+    algorithm_settings:
+      confidence_threshold: 0
+      blend_strength: 20
+      detector: sift
+      nfeatures: 5000
+
+    frames_strip_height: 50
+    cameras_calibration_settings:
+      cameras_matrix:
+        # 1
+        - [
+            [279.68109988, 0.0, 399.08388303],
+            [0.0, 280.78132116, 301.01582109],
+            [0.0, 0.0, 1.0],
+          ]
+        # 2
+        - [
+            [279.68109988, 0.0, 399.08388303],
+            [0.0, 280.78132116, 301.01582109],
+            [0.0, 0.0, 1.0],
+          ]
+
+      cameras_coeffs:
+        - [0.01407296, -0.0312378, 0.00073616, 0.00143817, 0.00534921]
+        - [0.01407296, -0.0312378, 0.00073616, 0.00143817, 0.00534921]
+
+    start_strip_width: 115
+    end_strip_width: 1300
+
+serial_connection:
+  port: # leave the port empty for auto detect
+  timeout: 0.01
+  baudrate: 115200
+
+ai_configuration:
+  use_ai_image_generator: false
+
+  # WARNING: Using unsupported model may crash the software
+  supported_model: true
+
+  ai_models_list:
+    - rupeshs--sd-turbo-openvino
+    - rupeshs--sdxs-512-0.9-openvino
+    - rupeshs--hyper-sd-sdxl-1-step-openvino-int8
+    - rupeshs--sdxl-turbo-openvino-int8
+    - Disty0--LCM_SoteMix
+    - runwayml--stable-diffusion-v1-5
+
+laser_cutter_settings:
+  cameras_enabled: true
+  tool_changer: true
+
+  tools: # laser tools
+    no_tool:
+      name: No Tool
+      command: M6T0
+      z_axis: # values to control the movement of the z axis based on the material thickness
+        min: -15
+        max: -80
+
+    CO2_laser:
+      name: CO2
+      command: M6T1
+      z_axis: # values to control the movement of the z axis based on the material thickness
+        min: -15
+        max: -80.2
+    Diode_laser:
+      name: Diode
+      command: M6T2
+      z_axis: # values to control the movement of the z axis based on the material thickness
+        min: -15
+        max: -85.6
+
+############### CNC ##################
+cnc_settings:
+  tool_changer: true
+  cameras_enabled: true
+  tools: # cnc tools
+    tool_number_1:
+      name: Num1
+      command: M6T1
+    tool_number_2:
+      name: Num2
+      command: M6T2
+    tool_number_3:
+      name: Num3
+      command: M6T3
+    tool_number_4:
+      name: Num4
+      command: M6T4
+    tool_number_5:
+      name: Num5
+      command: M6T5
+    tool_number_6:
+      name: Num6
+      command: M6T6
+    tool_number_7:
+      name: Num7
+      command: M6T7
+    tool_number_8:
+      name: Num8
+      command: M6T8
+    tool_number_9:
+      name: Num9
+      command: M6T9
+    tool_number_10:
+      name: Num10
+      command: M6T10
+    tool_number_11:
+      name: Num11
+      command: M6T11
+    tool_number_12:
+      name: Num12
+      command: M6T12

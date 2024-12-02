@@ -6,6 +6,7 @@ interface LogMessage {
   type: string;
   text: string | unknown;
 }
+
 export const useDebuggerDialogStore = defineStore('debuggerDialog', {
   state: () => ({
     isDialogShown: false as boolean,
@@ -26,10 +27,6 @@ export const useDebuggerDialogStore = defineStore('debuggerDialog', {
       this.isDialogShown = false;
     },
     addLog(time: Date, type: string, title: string, body: string | unknown) {
-      // remove first item of the array to reduce memory consumption
-      if (this.logs.length > 1000) {
-        this.logs.shift();
-      }
       // add new item
       this.logs.push({
         id: this.logs.length,
@@ -55,7 +52,7 @@ export const useDebuggerDialogStore = defineStore('debuggerDialog', {
     downloadLogs() {
       const logsText = this.logs
         .map((log) => {
-          return `${log.time} [${log.type}] ${log.text}`;
+          return `${log?.time} [${log?.type}] ${log?.text}`;
         })
         .join('\n');
       const filename = 'olos_logs.txt';

@@ -1,8 +1,8 @@
 diff --git a/node_modules/gcodetogeometry/gcodetogeometry.js b/node_modules/gcodetogeometry/gcodetogeometry.js
-index 108d8c8..2af2adf 100644
+index 108d8c8..be7f626 100644
 --- a/node_modules/gcodetogeometry/gcodetogeometry.js
 +++ b/node_modules/gcodetogeometry/gcodetogeometry.js
-@@ -13,463 +13,502 @@ var GParser = require("./parser").GParser;
+@@ -13,463 +13,515 @@ var GParser = require("./parser").GParser;
   * @param {string} code - The GCode.
   * @returns {ParsedGCode} The parsed GCode.
   */
@@ -49,7 +49,7 @@ index 108d8c8..2af2adf 100644
 -            } else  {
 -                obj[letter.toLowerCase()] = parseFloat(number, 10);
 -            }
-+var parse = function (code) {
++var parse = function (code, parserSettings, parserTotalSize) {
 +  "use strict";
 +
 +  var unitIsSet = false;
@@ -463,8 +463,30 @@ index 108d8c8..2af2adf 100644
 +      errorList.push(createError(
 +        line, "(warning) Some parameters are wrong.", false
 +      ));
++    }
++    return true;
++  }
++
++  /**
++   * Checks a G1 command.
++   * @param  {object}  command           The command
++   * @param  {array}   errorList         The error list
++   * @param  {number}  line              The line number
++     * @param  {object}  settings
++   * @return  {bool}   Returns true if the command is done, false if skipped
++   */
++
++  let checkG1 = (command, errorList, line, settings) => {
++    let acceptedParameters = ["X", "Y", "Z", "S", "F"];
++    let parameters = Object.keys(command);
++    parameters.splice(parameters.indexOf("type"), 1);
++
++    if (checkWrongParameter(acceptedParameters, parameters) === true) {
++      errorList.push(
++        createError(line, "(warning) Some parameters are wrong.", false)
++      );
      }
--
+ 
 -    /**
 -     * Manages a 60 or G1 command.
 -     * @param  {object}  command    The command
@@ -486,20 +508,19 @@ index 108d8c8..2af2adf 100644
 -        if(command.f !== undefined) {
 -            settings.feedrate = command.f;
 -        }
-+    return true;
-+  }
++    return !checkErrorFeedrate(command, errorList, line, settings);
++  };
 +
 +  /**
-+   * Checks a G1 command.
++   * Checks a G2 or G3 command.
 +   * @param  {object}  command           The command
 +   * @param  {array}   errorList         The error list
 +   * @param  {number}  line              The line number
-+     * @param  {object}  settings
++   * @param  {object}  settings
 +   * @return  {bool}   Returns true if the command is done, false if skipped
 +   */
-+
-+  let checkG1 = (command, errorList, line, settings) => {
-+    let acceptedParameters = ["X", "Y", "Z", "S", "F"];
++  let checkG2G3 = (command, errorList, line, settings) => {
++    let acceptedParameters = ["X", "Y", "Z", "S", "F", "I", "J", "K", "R"];
 +    let parameters = Object.keys(command);
 +    parameters.splice(parameters.indexOf("type"), 1);
 +
@@ -544,26 +565,16 @@ index 108d8c8..2af2adf 100644
 -                true
 -            ));
 -        }
-+    return !checkErrorFeedrate(command, errorList, line, settings);
-+  };
-+
-+  /**
-+   * Checks a G2 or G3 command.
-+   * @param  {object}  command           The command
-+   * @param  {array}   errorList         The error list
-+   * @param  {number}  line              The line number
-+   * @param  {object}  settings
-+   * @return  {bool}   Returns true if the command is done, false if skipped
-+   */
-+  let checkG2G3 = (command, errorList, line, settings) => {
-+    let acceptedParameters = ["X", "Y", "Z", "S", "F", "I", "J", "K", "R"];
-+    let parameters = Object.keys(command);
-+    parameters.splice(parameters.indexOf("type"), 1);
-+
-+    if (checkWrongParameter(acceptedParameters, parameters) === true) {
++    if (
++      command.r === undefined &&
++      command.i === undefined &&
++      command.j === undefined &&
++      command.k === undefined
++    ) {
 +      errorList.push(
-+        createError(line, "(warning) Some parameters are wrong.", false)
++        createError(line, "(error) No parameter R, I, J or K.", true)
 +      );
++      return false;
      }
  
 -    /**
@@ -582,7 +593,22 @@ index 108d8c8..2af2adf 100644
 -        if(command.type === undefined && Object.keys(command).length === 0) {
 -            return true;
 -        }
--
++    if (
++      command.r !== undefined &&
++      (command.i !== undefined ||
++        command.j !== undefined ||
++        command.k !== undefined)
++    ) {
++      errorList.push(
++        createError(
++          line,
++          "(error) Cannot use R and I, J or K at the same time.",
++          true
++        )
++      );
++      return false;
++    }
+ 
 -        setGoodType(command, settings.previousMoveCommand);
 -
 -        if(command.type === undefined) {
@@ -628,62 +654,6 @@ index 108d8c8..2af2adf 100644
 -        } else if(command.type === "M2") {
 -            return false;
 -        }
--
--        return true;
-+    if (
-+      command.r === undefined &&
-+      command.i === undefined &&
-+      command.j === undefined &&
-+      command.k === undefined
-+    ) {
-+      errorList.push(
-+        createError(line, "(error) No parameter R, I, J or K.", true)
-+      );
-+      return false;
-     }
- 
--    var totalSize = {
--        min : { x: 0, y : 0, z : 0 },
--        max : { x: 0, y : 0, z : 0 }
--    };
--    var i = 0, j = 0;
--    var tabRes = [];
--    var parsing = true;
--    var lines = [];
--    var errorList = [];
--
--    var settings = {
--        feedrate : 0,
--        previousMoveCommand : "",
--        crossAxe : "z",
--        inMm : false,
--        relative : false,
--        position : { x : 0, y : 0, z : 0 }
--    };
-+    if (
-+      command.r !== undefined &&
-+      (command.i !== undefined ||
-+        command.j !== undefined ||
-+        command.k !== undefined)
-+    ) {
-+      errorList.push(
-+        createError(
-+          line,
-+          "(error) Cannot use R and I, J or K at the same time.",
-+          true
-+        )
-+      );
-+      return false;
-+    }
- 
--    if(typeof code !== "string" || code  === "") {
--        return {
--            gcode : [],
--            lines : [],
--            size : totalSize,
--            displayInInch : setInInch,
--            errorList : [ { line : 0, message : "(error) No command." } ]
--        };
 +    return !checkErrorFeedrate(command, errorList, line, settings);
 +  };
 +
@@ -719,16 +689,7 @@ index 108d8c8..2af2adf 100644
 +      settings.feedrate = command.f;
 +    } if (command.s !== undefined) {
 +      settings.speed = command.s;
-     }
--    var gcode = code.split('\n');
--
--    i = 0;
--    while(i < gcode.length && parsing === true) {
--        //Sorry for not being really readable :'(
--        tabRes = parseParsedGCode(
--            GParser.parse(
--                removeCommentsAndSpaces(gcode[i]).toUpperCase()
--            )
++    }
 +  };
 +
 +  /**
@@ -766,15 +727,7 @@ index 108d8c8..2af2adf 100644
 +      if (temp === false) {
 +        errorList.push(
 +          createError(lineNumber, "(error) Impossible to create arc.", true)
-         );
--
--        j = 0;
--        while(j < tabRes.length && parsing === true) {
--            parsing = manageCommand(tabRes[j], settings, i+1, lines, totalSize,
--                    errorList);
--            j++;
--        }
--        i++;
++        );
 +        return;
 +      }
 +      settings.feedrate = line.feedrate;
@@ -809,12 +762,9 @@ index 108d8c8..2af2adf 100644
 +    //Empty line
 +    if (command.type === undefined && Object.keys(command).length === 0) {
 +      return true;
-     }
++    }
  
--    if(i < gcode.length) {
--        errorList.push(createError(
--            i + 1, "(warning) The next code is not executed.", false
--        ));
+-        return true;
 +    setGoodType(command, settings.previousMoveCommand);
 +
 +    if (command.type === undefined) {
@@ -860,26 +810,83 @@ index 108d8c8..2af2adf 100644
 +    return true;
 +  }
 +
-+  var totalSize = {
-+    min: { x: 0, y: 0, z: 0 },
-+    max: { x: 0, y: 0, z: 0 }
-+  };
++  if (parserTotalSize) {
++    var totalSize = parserTotalSize
++  } else {
+     var totalSize = {
+-        min : { x: 0, y : 0, z : 0 },
+-        max : { x: 0, y : 0, z : 0 }
++      min: { x: 0, y: 0, z: 0 },
++      max: { x: 0, y: 0, z: 0 }
+     };
+-    var i = 0, j = 0;
+-    var tabRes = [];
+-    var parsing = true;
+-    var lines = [];
+-    var errorList = [];
++  }
++
 +  var i = 0, j = 0;
 +  var tabRes = [];
 +  var parsing = true;
 +  var lines = [];
 +  var errorList = [];
-+
-+  var settings = {
-+    feedrate: 0,
-+    speed: 0,
-+    previousMoveCommand: "",
-+    crossAxe: "z",
-+    inMm: false,
-+    relative: false,
-+    position: { x: 0, y: 0, z: 0 }
-+  };
-+
+ 
++  if (parserSettings) {
++    var settings = parserSettings;
++  } else {
+     var settings = {
+-        feedrate : 0,
+-        previousMoveCommand : "",
+-        crossAxe : "z",
+-        inMm : false,
+-        relative : false,
+-        position : { x : 0, y : 0, z : 0 }
++      feedrate: 0,
++      speed: 0,
++      previousMoveCommand: "",
++      crossAxe: "z",
++      inMm: false,
++      relative: false,
++      position: { x: 0, y: 0, z: 0 }
+     };
++  }
+ 
+-    if(typeof code !== "string" || code  === "") {
+-        return {
+-            gcode : [],
+-            lines : [],
+-            size : totalSize,
+-            displayInInch : setInInch,
+-            errorList : [ { line : 0, message : "(error) No command." } ]
+-        };
+-    }
+-    var gcode = code.split('\n');
+-
+-    i = 0;
+-    while(i < gcode.length && parsing === true) {
+-        //Sorry for not being really readable :'(
+-        tabRes = parseParsedGCode(
+-            GParser.parse(
+-                removeCommentsAndSpaces(gcode[i]).toUpperCase()
+-            )
+-        );
+-
+-        j = 0;
+-        while(j < tabRes.length && parsing === true) {
+-            parsing = manageCommand(tabRes[j], settings, i+1, lines, totalSize,
+-                    errorList);
+-            j++;
+-        }
+-        i++;
+-    }
+-
+-    if(i < gcode.length) {
+-        errorList.push(createError(
+-            i + 1, "(warning) The next code is not executed.", false
+-        ));
+-    }
+-
 +  if (typeof code !== "string" || code === "") {
      return {
 -        gcode : gcode,
@@ -890,7 +897,9 @@ index 108d8c8..2af2adf 100644
 +      gcode: [],
 +      lines: [],
 +      size: totalSize,
++      parsing: parsing,
 +      displayInInch: setInInch,
++      settings: settings,
 +      errorList: [{ line: 0, message: "(error) No command." }]
      };
 +  }
@@ -924,6 +933,8 @@ index 108d8c8..2af2adf 100644
 +  return {
 +    gcode: gcode,
 +    lines: lines,
++    settings: settings,
++    parsing: parsing,
 +    size: totalSize,
 +    displayInInch: setInInch,
 +    errorList: errorList
@@ -1963,7 +1974,7 @@ index 1a038d6..0e4107b 100644
  
  exports.StraightLine = StraightLine;
 diff --git a/node_modules/gcodetogeometry/parser.js b/node_modules/gcodetogeometry/parser.js
-index 357933c..9066c15 100644
+index 357933c..adb73a5 100644
 --- a/node_modules/gcodetogeometry/parser.js
 +++ b/node_modules/gcodetogeometry/parser.js
 @@ -1,4 +1,4 @@
@@ -2334,7 +2345,191 @@ index 357933c..9066c15 100644
  
        if (expected !== null) {
          cleanupExpected(expected);
-@@ -1286,16 +1286,16 @@ var GParser = (function() {
+@@ -445,109 +445,95 @@ var GParser = (function() {
+       return s0;
+     }
+ 
+-    function peg$parsenumber() {
+-      var s0, s1, s2, s3, s4, s5, s6;
+-
+-      s0 = peg$currPos;
+-      if (peg$c10.test(input.charAt(peg$currPos))) {
+-        s1 = input.charAt(peg$currPos);
+-        peg$currPos++;
+-      } else {
+-        s1 = peg$FAILED;
+-        if (peg$silentFails === 0) { peg$fail(peg$c11); }
+-      }
+-      if (s1 === peg$FAILED) {
+-        s1 = peg$c1;
++     const peg$parsenumber = () => {
++  let s0, s1, s2, s3, s4, s5, s6;
++  
++  s0 = peg$currPos;
++  if (peg$c10.test(input.charAt(peg$currPos))) {
++    s1 = input.charAt(peg$currPos);
++    peg$currPos++;
++  } else {
++    s1 = peg$FAILED;
++    if (peg$silentFails === 0) {
++      peg$fail(peg$c11);
++    }
++  }
++  if (s1 === peg$FAILED) {
++    s1 = peg$c1;
++  }
++  if (s1 !== peg$FAILED) {
++    s2 = [];
++    if (peg$c7.test(input.charAt(peg$currPos))) {
++      s3 = input.charAt(peg$currPos);
++      peg$currPos++;
++    } else {
++      s3 = peg$FAILED;
++      if (peg$silentFails === 0) {
++        peg$fail(peg$c8);
+       }
+-      if (s1 !== peg$FAILED) {
+-        s2 = [];
++    }
++    if (s3 !== peg$FAILED) {
++      while (s3 !== peg$FAILED) {
++        s2.push(s3);
+         if (peg$c7.test(input.charAt(peg$currPos))) {
+           s3 = input.charAt(peg$currPos);
+           peg$currPos++;
+         } else {
+           s3 = peg$FAILED;
+-          if (peg$silentFails === 0) { peg$fail(peg$c8); }
+-        }
+-        if (s3 !== peg$FAILED) {
+-          while (s3 !== peg$FAILED) {
+-            s2.push(s3);
+-            if (peg$c7.test(input.charAt(peg$currPos))) {
+-              s3 = input.charAt(peg$currPos);
+-              peg$currPos++;
+-            } else {
+-              s3 = peg$FAILED;
+-              if (peg$silentFails === 0) { peg$fail(peg$c8); }
+-            }
++          if (peg$silentFails === 0) {
++            peg$fail(peg$c8);
+           }
+-        } else {
+-          s2 = peg$c0;
+         }
+-        if (s2 !== peg$FAILED) {
+-          s3 = peg$currPos;
+-          if (peg$c12.test(input.charAt(peg$currPos))) {
+-            s4 = input.charAt(peg$currPos);
+-            peg$currPos++;
+-          } else {
+-            s4 = peg$FAILED;
+-            if (peg$silentFails === 0) { peg$fail(peg$c13); }
+-          }
+-          if (s4 !== peg$FAILED) {
+-            s5 = [];
+-            if (peg$c7.test(input.charAt(peg$currPos))) {
+-              s6 = input.charAt(peg$currPos);
+-              peg$currPos++;
+-            } else {
+-              s6 = peg$FAILED;
+-              if (peg$silentFails === 0) { peg$fail(peg$c8); }
+-            }
+-            if (s6 !== peg$FAILED) {
+-              while (s6 !== peg$FAILED) {
+-                s5.push(s6);
+-                if (peg$c7.test(input.charAt(peg$currPos))) {
+-                  s6 = input.charAt(peg$currPos);
+-                  peg$currPos++;
+-                } else {
+-                  s6 = peg$FAILED;
+-                  if (peg$silentFails === 0) { peg$fail(peg$c8); }
+-                }
+-              }
+-            } else {
+-              s5 = peg$c0;
+-            }
+-            if (s5 !== peg$FAILED) {
+-              s4 = [s4, s5];
+-              s3 = s4;
+-            } else {
+-              peg$currPos = s3;
+-              s3 = peg$c0;
+-            }
+-          } else {
+-            peg$currPos = s3;
+-            s3 = peg$c0;
+-          }
+-          if (s3 === peg$FAILED) {
+-            s3 = peg$c1;
+-          }
+-          if (s3 !== peg$FAILED) {
+-            peg$reportedPos = s0;
+-            s1 = peg$c14();
+-            s0 = s1;
+-          } else {
+-            peg$currPos = s0;
+-            s0 = peg$c0;
+-          }
+-        } else {
+-          peg$currPos = s0;
+-          s0 = peg$c0;
++      }
++    } else {
++      s2 = peg$c0;
++    }
++    if (s2 !== peg$FAILED) {
++      s3 = peg$currPos;
++      if (peg$c12.test(input.charAt(peg$currPos))) {
++        s4 = input.charAt(peg$currPos);
++        peg$currPos++;
++      } else {
++        s4 = peg$FAILED;
++        if (peg$silentFails === 0) {
++          peg$fail(peg$c13);
++        }
++      }
++      if (s4 !== peg$FAILED) {
++        s5 = [];
++        while (peg$c7.test(input.charAt(peg$currPos))) {
++          s6 = input.charAt(peg$currPos);
++          peg$currPos++;
++          s5.push(s6);
+         }
++        s4 = [s4, s5];
++        s3 = s4;
++      } else {
++        peg$currPos = s3;
++        s3 = peg$c0;
++      }
++      if (s3 === peg$FAILED) {
++        s3 = peg$c1;
++      }
++      if (s3 !== peg$FAILED) {
++        peg$reportedPos = s0;
++        s1 = peg$c14();
++        s0 = s1;
+       } else {
+         peg$currPos = s0;
+         s0 = peg$c0;
+       }
+-
+-      return s0;
++    } else {
++      peg$currPos = s0;
++      s0 = peg$c0;
+     }
++  } else {
++    peg$currPos = s0;
++    s0 = peg$c0;
++  }
+ 
++  return s0;
++}
+     function peg$parseexpression() {
+       var s0, s1, s2, s3;
+ 
+@@ -1286,16 +1272,16 @@ var GParser = (function() {
      }
  
  
@@ -2361,7 +2556,7 @@ index 357933c..9066c15 100644
  
  
      peg$result = peg$startRuleFunction();
-@@ -1313,7 +1313,7 @@ var GParser = (function() {
+@@ -1313,7 +1299,7 @@ var GParser = (function() {
  
    return {
      SyntaxError: SyntaxError,

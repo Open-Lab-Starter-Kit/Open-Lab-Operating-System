@@ -4,10 +4,10 @@ import { executeRealTimeGCommands } from 'src/services/execute.commands.service'
 
 export const useOverrideSettingsStore = defineStore('overrideSettings', {
   state: () => ({
-    isLaserMode: true as boolean,
     feedRate: 100 as number,
     laserPower: 100 as number,
     spindleSpeed: 100 as number,
+    toolPower: 100 as number,
   }),
   actions: {
     increaseFeedRateOnePercent() {
@@ -60,6 +60,10 @@ export const useOverrideSettingsStore = defineStore('overrideSettings', {
         Constants.GRBL_COMMAND_INCREASE_SPINDLE_SPEED_10
       );
     },
+    defaultSpindleSpeed() {
+      this.spindleSpeed = 100;
+      executeRealTimeGCommands(Constants.GRBL_COMMAND_DEFAULT_SPINDLE_SPEED);
+    },
     decreaseSpindleSpeedOnePercent() {
       this.spindleSpeed -= 1;
       executeRealTimeGCommands(Constants.GRBL_COMMAND_DECREASE_SPINDLE_SPEED_1);
@@ -70,9 +74,25 @@ export const useOverrideSettingsStore = defineStore('overrideSettings', {
         Constants.GRBL_COMMAND_DECREASE_SPINDLE_SPEED_10
       );
     },
-    defaultSpindleSpeed() {
-      this.spindleSpeed = 100;
-      executeRealTimeGCommands(Constants.GRBL_COMMAND_DEFAULT_SPINDLE_SPEED);
+    defaultToolPower() {
+      this.toolPower = 100;
+      executeRealTimeGCommands(Constants.GRBL_COMMAND_DEFAULT_TOOL_SPEED);
+    },
+    increaseToolPowerOnePercent() {
+      this.toolPower += 1;
+      executeRealTimeGCommands(Constants.GRBL_COMMAND_INCREASE_TOOL_SPEED_1);
+    },
+    increaseToolPowerTenPercent() {
+      this.toolPower += 10;
+      executeRealTimeGCommands(Constants.GRBL_COMMAND_INCREASE_TOOL_SPEED_10);
+    },
+    decreaseToolPowerOnePercent() {
+      this.toolPower -= 1;
+      executeRealTimeGCommands(Constants.GRBL_COMMAND_DECREASE_TOOL_SPEED_1);
+    },
+    decreaseToolPowerTenPercent() {
+      this.spindleSpeed -= 10;
+      executeRealTimeGCommands(Constants.GRBL_COMMAND_DECREASE_TOOL_SPEED_10);
     },
   },
 });

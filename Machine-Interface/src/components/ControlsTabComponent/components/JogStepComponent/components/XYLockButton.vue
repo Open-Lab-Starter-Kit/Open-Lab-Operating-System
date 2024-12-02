@@ -3,14 +3,13 @@
   <q-btn
     :icon="isXYLocked ? 'lock_open' : 'lock'"
     text-color="black"
-    class="bg-white q-pa-xs lock-style"
+    class="self-start q-mt-xl bg-white q-pa-xs lock-style"
     color="bg-white"
     outline
     push
     size="md"
     :disable="isDisabled"
     @click="jogControlsStore.changeXYLockStatus()"
-    style="border-radius: 10px"
   >
     <q-tooltip class="bg-black">{{
       isXYLocked ? 'Unlock XY' : 'Lock XY'

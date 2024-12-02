@@ -1,7 +1,7 @@
 <template>
   <div class="column q-my-sm flex-center full-width">
     <span class="text-size">Job Position</span>
-    <div class="row full-width justify-between">
+    <div class="row full-width justify-evenly">
       <div class="column col-xs-12 col-sm-6 col-md-4 items-center">
         <span class="text-size">X</span>
         <div
@@ -72,7 +72,10 @@
           </q-popup-edit>
         </div>
       </div>
-      <div class="column col-xs-12 col-sm-6 col-md-4 items-center">
+      <div
+        v-if="config?.machine_type !== Constants.MACHINE_TYPE.VINYL_CUTTER"
+        class="column col-xs-12 col-sm-6 col-md-4 items-center"
+      >
         <span class="text-size">Z</span>
         <div
           :class="[
@@ -117,6 +120,11 @@ import { Constants } from 'src/constants';
 import { useMachineStatusStore } from 'src/stores/machine-status';
 import { executeNormalGCommands } from 'src/services/execute.commands.service';
 import { storeToRefs } from 'pinia';
+import { Config } from 'src/interfaces/configSettings.interface';
+
+defineProps<{
+  config: Config | null;
+}>();
 
 const machineStatusStore = useMachineStatusStore();
 const { machineState, jobPosition } = storeToRefs(machineStatusStore);
@@ -171,4 +179,4 @@ const sanitizeInput = (event: KeyboardEvent) => {
   font-weight: 500;
 }
 </style>
-src/services/execute.commands.service
+src/interfaces/configSettings.interface

@@ -1,8 +1,11 @@
+import { Config } from 'src/interfaces/configSettings.interface';
+
 export const floydSteinbergDithering = (
   imageData: ImageData,
   grayShift: number
 ) => {
   const canvasElement = new OffscreenCanvas(imageData.width, imageData.height);
+
   const ctx = canvasElement.getContext('2d', {
     willReadFrequently: true,
   }) as OffscreenCanvasRenderingContext2D;
@@ -16,9 +19,12 @@ export const floydSteinbergDithering = (
       [3, 5, 1],
     ];
 
-    // Iterate over each pixel in the image
-    for (let y = 0; y < canvasElement.height; y++) {
-      for (let x = 0; x < canvasElement.width; x++) {
+    // Create a new ImageData object to hold the modified pixel data
+    const modifiedImageData = new ImageData(imageData.width, imageData.height);
+
+    // Iterate over each pixel with the calculated step
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
         const index = (y * canvasElement.width + x) * 4;
         const alpha = data[index + 3];
         if (alpha > 0) {
@@ -35,12 +41,20 @@ export const floydSteinbergDithering = (
           );
 
           // Threshold the shifted intensity
-          const newValue = shiftedIntensity < 128 ? 0 : 255;
-          const error = shiftedIntensity - newValue;
+          const threshold = shiftedIntensity < 128 ? 0 : 255;
+          const error = shiftedIntensity - threshold;
 
-          // Update the current pixel
-          data[index] = data[index + 1] = data[index + 2] = newValue;
-          data[index + 3] = 255; // Set alpha to 255
+          // Update the pixels in the square defined by step size
+          for (let i = y; i < y + 1; i++) {
+            for (let j = x; j < x + 1; j++) {
+              const idx = (i * canvasElement.width + j) * 4;
+              modifiedImageData.data[idx] =
+                modifiedImageData.data[idx + 1] =
+                modifiedImageData.data[idx + 2] =
+                  threshold;
+              modifiedImageData.data[idx + 3] = 255; // Set alpha to 255
+            }
+          }
 
           // Diffuse the error to neighboring pixels
           for (let i = 0; i < 3; i++) {
@@ -63,7 +77,7 @@ export const floydSteinbergDithering = (
     }
 
     // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(modifiedImageData, 0, 0);
   }
   return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
 };
@@ -84,9 +98,12 @@ export const orderedDithering = (imageData: ImageData, grayShift: number) => {
       [256, 128, 224, 96],
     ];
 
+    // Create a new ImageData object to hold the modified pixel data
+    const modifiedImageData = new ImageData(imageData.width, imageData.height);
+
     // Iterate over each pixel in the image
-    for (let y = 0; y < canvasElement.height; y++) {
-      for (let x = 0; x < canvasElement.width; x++) {
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
         const index = (y * canvasElement.width + x) * 4;
         const alpha = data[index + 3];
         if (alpha > 0) {
@@ -106,24 +123,34 @@ export const orderedDithering = (imageData: ImageData, grayShift: number) => {
           const isBlack = shiftedIntensity < ditherMatrix[y % 4][x % 4];
           const threshold = isBlack ? 0 : 255;
 
-          // Update the current pixel
-          data[index] = data[index + 1] = data[index + 2] = threshold;
-          data[index + 3] = 255; // Set alpha to 255
+          // Update the pixels in the square defined by step size
+          for (let i = y; i < y + 1; i++) {
+            for (let j = x; j < x + 1; j++) {
+              const idx = (i * canvasElement.width + j) * 4;
+              modifiedImageData.data[idx] =
+                modifiedImageData.data[idx + 1] =
+                modifiedImageData.data[idx + 2] =
+                  threshold;
+              modifiedImageData.data[idx + 3] = 255; // Set alpha to 255
+            }
+          }
         }
       }
     }
 
     // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(modifiedImageData, 0, 0);
   }
   return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
 };
 
 export const halftoneDithering = (imageData: ImageData, grayShift: number) => {
   const canvasElement = new OffscreenCanvas(imageData.width, imageData.height);
+
   const ctx = canvasElement.getContext('2d', {
     willReadFrequently: true,
   }) as OffscreenCanvasRenderingContext2D;
+
   if (ctx) {
     const data = imageData.data;
 
@@ -139,11 +166,15 @@ export const halftoneDithering = (imageData: ImageData, grayShift: number) => {
       [32, 40, 54, 38, 31, 21, 19, 29],
     ];
 
+    // Create a new ImageData object to hold the modified pixel data
+    const modifiedImageData = new ImageData(imageData.width, imageData.height);
+
     // Iterate over each pixel in the image
-    for (let y = 0; y < canvasElement.height; y++) {
-      for (let x = 0; x < canvasElement.width; x++) {
-        const index = (y * canvasElement.width + x) * 4;
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
+        const index = (Math.floor(y) * canvasElement.width + Math.floor(x)) * 4;
         const alpha = data[index + 3];
+
         if (alpha > 0) {
           // Calculate grayscale intensity using luminance formula
           const intensity =
@@ -160,20 +191,28 @@ export const halftoneDithering = (imageData: ImageData, grayShift: number) => {
           // Threshold the intensity using halftone matrix
           const isBlack =
             shiftedIntensity <
-            ((1 + ditherMatrix[y % 8][x % 8]) * 256) /
+            ((1 + ditherMatrix[Math.floor(y) % 8][Math.floor(x) % 8]) * 256) /
               (1 + ditherMatrix.length * ditherMatrix.length);
 
           const threshold = isBlack ? 0 : 255;
 
-          // Update the current pixel
-          data[index] = data[index + 1] = data[index + 2] = threshold;
-          data[index + 3] = 255; // Set alpha to 255
+          // Update the pixels in the square defined by step size
+          for (let i = y; i < y + 1 && i < canvasElement.height; i++) {
+            for (let j = x; j < x + 1 && j < canvasElement.width; j++) {
+              const idx =
+                (Math.floor(i) * canvasElement.width + Math.floor(j)) * 4;
+              modifiedImageData.data[idx] =
+                modifiedImageData.data[idx + 1] =
+                modifiedImageData.data[idx + 2] =
+                  threshold;
+              modifiedImageData.data[idx + 3] = 255; // Set alpha to 255
+            }
+          }
         }
       }
     }
-
-    // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
+    // Put the modified image data onto the canvas
+    ctx.putImageData(modifiedImageData, 0, 0);
   }
   return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
 };
@@ -186,9 +225,12 @@ export const randomDithering = (imageData: ImageData, grayShift: number) => {
   if (ctx) {
     const data = imageData.data;
 
-    // Iterate over each pixel in the image
-    for (let y = 0; y < canvasElement.height; y++) {
-      for (let x = 0; x < canvasElement.width; x++) {
+    // Create a new ImageData object to hold the modified pixel data
+    const modifiedImageData = new ImageData(imageData.width, imageData.height);
+
+    // Iterate over each pixel with the calculated step
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
         const index = (y * canvasElement.width + x) * 4;
         const alpha = data[index + 3];
         if (alpha > 0) {
@@ -211,17 +253,30 @@ export const randomDithering = (imageData: ImageData, grayShift: number) => {
 
           const threshold = isBlack ? 0 : 255;
 
-          // Update the current pixel
-          data[index] = data[index + 1] = data[index + 2] = threshold;
-          data[index + 3] = 255; // Set alpha to 255
+          // Update the pixels in the square defined by step size
+          for (let i = y; i < y + 1; i++) {
+            for (let j = x; j < x + 1; j++) {
+              const idx = (i * canvasElement.width + j) * 4;
+              modifiedImageData.data[idx] =
+                modifiedImageData.data[idx + 1] =
+                modifiedImageData.data[idx + 2] =
+                  threshold;
+              modifiedImageData.data[idx + 3] = 255; // Set alpha to 255
+            }
+          }
         }
       }
     }
 
     // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(modifiedImageData, 0, 0);
   }
-  return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
+  return ctx.getImageData(
+    0,
+    0,
+    canvasElement.width / 10,
+    canvasElement.height / 10
+  );
 };
 
 export const gridDithering = (
@@ -249,9 +304,12 @@ export const gridDithering = (
     const averageIntensity =
       totalIntensity / (canvasElement.width * canvasElement.height);
 
+    // Create a new ImageData object to hold the modified pixel data
+    const modifiedImageData = new ImageData(imageData.width, imageData.height);
+
     // Iterate over each pixel in the image
-    for (let y = 0; y < canvasElement.height; y++) {
-      for (let x = 0; x < canvasElement.width; x++) {
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
         const index = (y * canvasElement.width + x) * 4;
         const alpha = data[index + 3];
         if (alpha > 0) {
@@ -275,15 +333,23 @@ export const gridDithering = (
 
           const threshold = isBlack ? 0 : 255;
 
-          // Update the current pixel
-          data[index] = data[index + 1] = data[index + 2] = threshold;
-          data[index + 3] = 255; // Set alpha to 255
+          // Update the pixels in the square defined by step size
+          for (let i = y; i < y + 1; i++) {
+            for (let j = x; j < x + 1; j++) {
+              const idx = (i * canvasElement.width + j) * 4;
+              modifiedImageData.data[idx] =
+                modifiedImageData.data[idx + 1] =
+                modifiedImageData.data[idx + 2] =
+                  threshold;
+              modifiedImageData.data[idx + 3] = 255; // Set alpha to 255
+            }
+          }
         }
       }
     }
 
     // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(modifiedImageData, 0, 0);
   }
   return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
 };
@@ -294,6 +360,7 @@ export const averageDithering = (imageData: ImageData, grayShift: number) => {
     willReadFrequently: true,
   }) as OffscreenCanvasRenderingContext2D;
   if (ctx) {
+    // Clear the canvas
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     const data = imageData.data;
 
@@ -306,9 +373,12 @@ export const averageDithering = (imageData: ImageData, grayShift: number) => {
     const averageIntensity =
       totalIntensity / (canvasElement.width * canvasElement.height);
 
-    // Iterate over each pixel in the image
-    for (let y = 0; y < canvasElement.height; y++) {
-      for (let x = 0; x < canvasElement.width; x++) {
+    // Create a new ImageData object to hold the modified pixel data
+    const modifiedImageData = new ImageData(imageData.width, imageData.height);
+
+    // Iterate over each pixel with the calculated step
+    for (let y = 0; y < canvasElement.height; y += 1) {
+      for (let x = 0; x < canvasElement.width; x += 1) {
         const index = (y * canvasElement.width + x) * 4;
         const alpha = data[index + 3];
         if (alpha > 0) {
@@ -328,15 +398,23 @@ export const averageDithering = (imageData: ImageData, grayShift: number) => {
           const isBlack = shiftedIntensity < averageIntensity;
           const threshold = isBlack ? 0 : 255;
 
-          // Update the current pixel
-          data[index] = data[index + 1] = data[index + 2] = threshold;
-          data[index + 3] = 255; // Set alpha to 255
+          // Update the pixels in the square defined by step size
+          for (let i = y; i < y + 1; i++) {
+            for (let j = x; j < x + 1; j++) {
+              const idx = (i * canvasElement.width + j) * 4;
+              modifiedImageData.data[idx] =
+                modifiedImageData.data[idx + 1] =
+                modifiedImageData.data[idx + 2] =
+                  threshold;
+              modifiedImageData.data[idx + 3] = 255; // Set alpha to 255
+            }
+          }
         }
       }
     }
 
     // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
+    ctx.putImageData(modifiedImageData, 0, 0);
   }
   return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
 };

@@ -1,7 +1,10 @@
 {
   "extends": "@quasar/app-vite/tsconfig-preset",
   "compilerOptions": {
-    "baseUrl": "."
+    "baseUrl": "./",
+    "target": "ESNext",
+    "maxNodeModuleJsDepth": 20,
+    "skipLibCheck": true
   },
   "esModuleInterop": true
 }

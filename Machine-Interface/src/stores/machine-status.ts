@@ -1,44 +1,16 @@
 import { defineStore } from 'pinia';
 import { Constants } from 'src/constants';
+import {
+  JobPosition,
+  MachineConnectionData,
+  StatusData,
+} from 'src/interfaces/machineStatus.interface';
+import { configurationSettings } from 'src/services/configuration.loader.service';
 
-interface StatusData {
-  type: string;
-  state?: string;
-  machine_position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-
-  work_coordinate_offset: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  buffer_state: {
-    commands_queued: number;
-    buffer_length: number;
-  };
-  feed_and_speed: {
-    feed_rate: number;
-    spindle_speed: number;
-  };
-  overrides: {
-    feed: number;
-    rapids: number;
-    spindle: number;
-  };
-}
-
-interface MachineConnectionData {
-  type: string;
-  success: boolean;
-  time: string;
-}
-
+const config = await configurationSettings();
 const statusInitialValue: StatusData = {
   type: Constants.MACHINE_STATUS_DATA_TYPE,
-  state: Constants.DISCONNECTED,
+  state: Constants.CONNECTING,
   machine_position: {
     x: 0,
     y: 0,
@@ -55,25 +27,36 @@ const statusInitialValue: StatusData = {
   },
   feed_and_speed: {
     feed_rate: 0,
-    spindle_speed: 0,
+    speed: 0,
   },
   overrides: {
     feed: 0,
     rapids: 0,
     spindle: 0,
   },
+  machine_tool: 0,
 };
 
-const jobPositionInitialValue = {
-  x: 0,
-  y: 0,
-  z: 0,
-};
+const jobPositionInitialValue = (() => {
+  // No z axis in vinyl cutter machines
+  if (config.machine_type === Constants.MACHINE_TYPE.VINYL_CUTTER) {
+    return {
+      x: 0,
+      y: 0,
+    };
+  } else {
+    return {
+      x: 0,
+      y: 0,
+      z: 0,
+    };
+  }
+})();
 
 export const useMachineStatusStore = defineStore('status', {
   state: () => ({
     status: statusInitialValue as StatusData,
-    job_position: jobPositionInitialValue,
+    job_position: jobPositionInitialValue as JobPosition,
   }),
   getters: {
     machineState: (state) => state.status.state,
@@ -90,21 +73,30 @@ export const useMachineStatusStore = defineStore('status', {
           ? state.status.machine_position?.y -
             state.status.work_coordinate_offset.y
           : state.job_position.y;
+
       state.job_position.z =
         state.status.machine_position.z && state.status.work_coordinate_offset.z
           ? state.status.machine_position?.z -
             state.status.work_coordinate_offset.z
           : state.job_position.z;
 
-      return {
-        x: state.job_position.x.toFixed(2),
-        y: state.job_position.y.toFixed(2),
-        z: state.job_position.z.toFixed(2),
-      };
+      if (state.job_position.z !== undefined) {
+        return {
+          x: state.job_position.x.toFixed(2),
+          y: state.job_position.y.toFixed(2),
+          z: state.job_position.z.toFixed(2),
+        };
+      } else {
+        return {
+          x: state.job_position.x.toFixed(2),
+          y: state.job_position.y.toFixed(2),
+        };
+      }
     },
     bufferState: (state) => state.status.buffer_state,
     feedAndSpeed: (state) => state.status.feed_and_speed,
     overrides: (state) => state.status.overrides,
+    machineTool: (state) => state.status.machine_tool,
   },
   actions: {
     updateConnectionStatus(connect: MachineConnectionData) {
@@ -131,7 +123,6 @@ export const useMachineStatusStore = defineStore('status', {
         };
       }
     },
-
     resetXJobPosition() {
       this.status.work_coordinate_offset.x = this.machinePosition.x;
       this.job_position.x = 0;

@@ -12,7 +12,9 @@
       thumb-size="25px"
       :disable="isSliderDisabled() || isXYLocked"
     />
-    <div class="row col-md col-sm-12 col-xs-12 flex-center q-gutter-x-sm">
+    <div
+      class="row col-md col-sm-12 col-xs-12 items-center justify-end q-gutter-x-sm q-pr-md"
+    >
       <span class="text-h8 text-bold">{{ yJogStep }} mm</span>
       <q-btn
         :icon="

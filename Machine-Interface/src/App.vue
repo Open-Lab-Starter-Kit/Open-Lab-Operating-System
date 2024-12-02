@@ -3,20 +3,48 @@
 </template>
 
 <script setup lang="ts">
-import { useFileManagementStore } from './stores/file-management';
+import { storeToRefs } from 'pinia';
+import { useJobsFilesManagementStore } from './stores/jobs-files-management';
+import { useGcodePreviewStore } from './stores/gcode-preview';
+import { useMachineStatusStore } from './stores/machine-status';
 import { useWebSocketStore } from './stores/websocket-connection';
-import { onMounted } from 'vue';
+import { onBeforeMount } from 'vue';
+import { showNotifyMessage } from './services/notify.messages.service';
+import { Constants } from 'src/constants';
 
-const fileManagerStore = useFileManagementStore();
+const jobManagerStore = useJobsFilesManagementStore();
+const gcodePreviewStore = useGcodePreviewStore();
+const machineStatusStore = useMachineStatusStore();
 const websocketStore = useWebSocketStore();
+const notifyMessage = showNotifyMessage();
 
-const { checkOpenFile } = fileManagerStore;
+const { fileData } = storeToRefs(jobManagerStore);
+const { machineState } = storeToRefs(machineStatusStore);
 
-// Connect to WebSocket when component is mounted
-onMounted(() => {
+onBeforeMount(() => {
+  // Connect to WebSocket when component is mounted
   websocketStore.connect(process.env.WEBSOCKET_URL || '');
 
-  // Check if there is an already opened file in the system
-  checkOpenFile();
+  // check the opened file in the system
+  jobManagerStore
+    .checkOpenFile()
+    .then(() => {
+      if (machineState.value) {
+        gcodePreviewStore
+          .createGcodePreviewerGraph(fileData.value.fileContent)
+          .then(() => {
+            // incase the machine running while creating the gcode preview
+            if (machineState.value !== Constants.IDLE) {
+              gcodePreviewStore.deactivateDragAndDropControls();
+            }
+          });
+      }
+    })
+    .catch((error) => notifyMessage.error(error.message));
 });
 </script>
+<style lang="scss">
+.q-dialog__backdrop {
+  backdrop-filter: blur(3px);
+}
+</style>

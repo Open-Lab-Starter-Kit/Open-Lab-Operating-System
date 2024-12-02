@@ -1,5 +1,5 @@
 <template>
-  <div class="column col-2 col-md-2 col-sm-5 col-xs-5 flex-center q-py-md">
+  <div class="column col col-md col-sm-5 col-xs-5 flex-center q-py-md">
     <q-btn
       label="Return to zero"
       color="white"
@@ -23,7 +23,7 @@ defineProps<{
 }>();
 
 const returnToZero = () => {
-  executeNormalGCommands(Constants.COMMAND_RETURN_ZERO);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RETURN_ZERO);
 };
 </script>
 <style scoped>

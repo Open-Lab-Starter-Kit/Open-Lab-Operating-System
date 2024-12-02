@@ -1,69 +1,58 @@
 import { defineStore } from 'pinia';
+import { NavTab, NavTabs } from 'src/interfaces/activeTabs.interface';
 import { useRouter } from 'vue-router';
-
-export interface NavItem {
-  icon: string;
-  label: string;
-  router: string;
-}
-
-export interface NavItems {
-  files: NavItem;
-  controls: NavItem;
-  console: NavItem;
-}
 
 export const useTabsStore = defineStore('tabsStore', {
   state: () => ({
     navList: {
       files: {
         icon: 'folder',
-        label: 'File Manager',
-        router: 'files',
-      } as NavItem,
+        label: 'Jobs Manager',
+        router: 'jobs',
+      } as NavTab,
       controls: {
         icon: 'tune',
         label: 'Controls',
         router: 'controls',
-      } as NavItem,
+      } as NavTab,
       preview: {
         icon: 'preview',
         label: 'Job Preview',
         router: 'preview',
-      } as NavItem,
+      } as NavTab,
       convertor: {
         icon: 'change_circle',
         label: 'Gcode Generator',
         router: 'generator',
-      } as NavItem,
+      } as NavTab,
       console: {
         icon: 'code',
         label: 'Console',
         router: 'console',
-      } as NavItem,
-    } as NavItems,
+      } as NavTab,
+    } as NavTabs,
     activeMenuItem: {
       icon: 'tune',
       label: 'Controls',
       router: 'controls',
-    } as NavItem,
+    } as NavTab,
     router: useRouter(),
   }),
 
   actions: {
     // check the active item and navigate to it at first mount
-    isActiveTab(item: NavItem) {
-      if (this.activeMenuItem.label === item.label) {
-        this.changeTab(item);
+    isActiveTab(tab: NavTab) {
+      if (this.activeMenuItem.label === tab.label) {
+        this.changeTab(tab);
         return true;
       }
       return false;
     },
 
-    changeTab(item: NavItem) {
-      this.activeMenuItem = item;
+    changeTab(tab: NavTab) {
+      this.activeMenuItem = tab;
       // navigate to the right page
-      this.router.push({ name: item.router });
+      this.router.push({ name: tab.router });
     },
   },
 });

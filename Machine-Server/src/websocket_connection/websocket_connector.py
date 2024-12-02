@@ -1,11 +1,14 @@
 import asyncio
 import json
-import time
 import websockets
-from decouple import config
 from multiprocessing import Process
-
 from .constants import WebsocketConstants as constants
+import os
+from dotenv import load_dotenv
+import sys
+import signal
+
+load_dotenv()
 
 
 class WebSocketConnector(Process):
@@ -21,6 +24,10 @@ class WebSocketConnector(Process):
         self._recv_lock = asyncio.Lock()
         self._send_lock = asyncio.Lock()
 
+        # Register signal handler for graceful termination
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+
     # start websocket connection
     def run(self):
         try:
@@ -33,20 +40,20 @@ class WebSocketConnector(Process):
             asyncio.run(self.disconnect_websocket())
 
     # Start the WebSocket server
-
     async def start_websocket_server(self):
         try:
             server = await websockets.serve(
                 self.handle_client,
-                config("HOST"),
-                config("WEBSOCKET_PORT"),
-                max_size=constants.MAX_FRAME_SIZE
+                os.getenv("HOST"),
+                os.getenv("WEBSOCKET_PORT"),
+                max_size=constants.MAX_FRAME_SIZE,
+                ping_interval=None
             )
 
-            if config("ENV") == "development":
+            if os.getenv("ENV") == "development":
                 print("Websocket settings:")
-                print("-> HostName:", config('HOST'))
-                print("-> Port:", config("WEBSOCKET_PORT"))
+                print("-> HostName:", os.getenv('HOST'))
+                print("-> Port:", os.getenv("WEBSOCKET_PORT"))
                 print('Websocket connection started')
 
             self._is_connected = True
@@ -57,7 +64,7 @@ class WebSocketConnector(Process):
         except OSError as e:
             if e.errno == 10048:
                 print(
-                    f'Error: Port {config("WEBSOCKET_PORT")} is already in use. Choose a different port.')
+                    f'Error: Port {os.getenv("WEBSOCKET_PORT")} is already in use. Choose a different port.')
                 await self.reconnect_to_websocket()
             else:
                 print(f"Error: {e}")
@@ -66,12 +73,15 @@ class WebSocketConnector(Process):
         self._websocket_connections.add(websocket)
         try:
             while True:
+                send_task = asyncio.create_task(self.send_data_to_users())
+                recv_task = asyncio.create_task(self.receive_data_from_users())
+
+                # Ensure that receiving is prioritized by awaiting recv_task first
+                await recv_task
+                await send_task
+
                 # Delay to not consume the CPU
                 await asyncio.sleep(constants.TIMEOUT)
-                await asyncio.gather(
-                    self.send_data_to_users(),
-                    self.receive_data_from_users()
-                )
 
         except websockets.exceptions.ConnectionClosedOK:
             print("WebSocket connection closed by the client")
@@ -97,17 +107,11 @@ class WebSocketConnector(Process):
 
     # Handle data that the server wants to send to the user
     async def send_data_to_users(self):
-        # wait in case the user refresh the browser and we lose the websocket connection
-
         async with self._send_lock:
-            # there is data need to be shown to the user
-            # and there is connection
             if (not self.websocket_server_data.websocket_write_queue.empty() and
                     self._websocket_connections):
-                type, data = self.websocket_server_data.websocket_write_queue.get(
-                )
+                type, data = self.websocket_server_data.websocket_write_queue.get()
 
-                # Send to all the clients connected to server
                 await asyncio.gather(*(ws_connection.send(data) for ws_connection in self._websocket_connections))
 
     # Handle sent data from the user
@@ -118,20 +122,15 @@ class WebSocketConnector(Process):
 
     async def analyze_user_message(self, ws_connection):
         try:
-
-            # Receive data if possible every 10 ms
             json_data = await asyncio.wait_for(ws_connection.recv(), timeout=constants.TIMEOUT)
             if json_data:
-
-                # Extract type and data from the dictionary
                 data_dict = json.loads(json_data)
                 type = data_dict.get('type')
                 data = data_dict.get('data')
 
-                if config("ENV") == 'development':
+                if os.getenv("ENV") == 'development':
                     print("Data received from user: ", data_dict)
 
-                # Process the received data
                 self.add_to_websocket_read_queue(type,
                                                  constants.HIGH_PRIORITY_COMMAND,
                                                  data)
@@ -139,25 +138,32 @@ class WebSocketConnector(Process):
         except asyncio.TimeoutError:
             pass  # Continue the loop if no data received within the timeout
 
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        except websockets.exceptions.ConnectionClosed:
+            pass  # ignore closing connection errors
+
+        except Exception as error:
+            print(f'An error occurred: {error}')
+
+    # Signal handler function
+
+    def signal_handler(self, signal, frame):
+        print('Termination signal received. Closing WebSocket connections...')
+        asyncio.run(self.disconnect_websocket())
+        sys.exit(0)
 
     async def disconnect_websocket(self):
         if self._websocket_connections:
-            await self._websocket_connections.close()
-            self._websocket_connections = None
+            await asyncio.gather(*(ws.close() for ws in self._websocket_connections))
+            self._websocket_connections.clear()
             self._is_connected = False
             print("Websocket connection closed")
 
         else:
             print("Websocket connection is already closed")
 
-        await self.reconnect_to_websocket()
-
     async def reconnect_to_websocket(self):
         while not self._is_connected:
-            print('Wait 5 seconds.Trying to connect to Websocket server...')
+            print('Wait 5 seconds. Trying to connect to Websocket server...')
             await asyncio.sleep(5)
 
-            # rerun the server
             await self.start_websocket_server()

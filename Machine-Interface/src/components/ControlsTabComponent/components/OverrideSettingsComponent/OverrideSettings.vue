@@ -1,15 +1,27 @@
 <template>
-  <div class="column full-width bg-grey-4 q-gutter-sm rounded-borders">
-    <span class="text-bold" style="font-size: 1rem">Override Settings</span>
-    <div class="row q-gutter-sm full-width justify-around">
-      <feed-rate />
-      <laser-power />
-    </div>
-  </div>
+  <override-settings-vinyl-cutter
+    v-if="config?.machine_type === Constants.MACHINE_TYPE.VINYL_CUTTER"
+  />
+  <override-settings-laser-cutter
+    v-else-if="config?.machine_type === Constants.MACHINE_TYPE.LASER_CUTTER"
+  />
+  <override-settings-cnc
+    v-else-if="config?.machine_type === Constants.MACHINE_TYPE.CNC"
+  />
 </template>
 <script setup lang="ts">
-import FeedRate from './components/FeedRate.vue';
-import LaserPower from './components/LaserPower.vue';
+import OverrideSettingsVinylCutter from './components/overrideSettingsVinylCutter/OverrideSettingsVinylCutter.vue';
+import OverrideSettingsLaserCutter from './components/overrideSettingsLaserCutter/OverrideSettingsLaserCutter.vue';
+import OverrideSettingsCnc from './components/overrideSettingsCNC/OverrideSettingsCNC.vue';
+import { onMounted, ref } from 'vue';
+import { configurationSettings } from 'src/services/configuration.loader.service';
+import { Config } from 'src/interfaces/configSettings.interface';
+import { Constants } from 'src/constants';
+
+const config = ref<Config | null>(null);
+onMounted(async () => {
+  config.value = await configurationSettings();
+});
 </script>
 <style>
 .button-size {

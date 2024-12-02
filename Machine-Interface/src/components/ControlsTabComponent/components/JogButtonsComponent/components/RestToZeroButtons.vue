@@ -37,6 +37,7 @@
         />
       </div>
       <q-btn
+        v-if="config?.machine_type !== Constants.MACHINE_TYPE.VINYL_CUTTER"
         label="Z0"
         color="white"
         stack
@@ -51,32 +52,34 @@
 </template>
 <script setup lang="ts">
 import { Constants } from 'src/constants';
+import { Config } from 'src/interfaces/configSettings.interface';
 import { executeNormalGCommands } from 'src/services/execute.commands.service';
 import { useMachineStatusStore } from 'src/stores/machine-status';
 
 defineProps<{
   isDisabled: boolean;
+  config: Config | null;
 }>();
 
 const store = useMachineStatusStore();
 
 const resetXToZero = () => {
-  executeNormalGCommands(Constants.COMMAND_RESET_ZERO_X);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RESET_ZERO_X);
   store.resetXJobPosition();
 };
 
 const resetYToZero = () => {
-  executeNormalGCommands(Constants.COMMAND_RESET_ZERO_Y);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RESET_ZERO_Y);
   store.resetYJobPosition();
 };
 
 const resetXYToZero = () => {
-  executeNormalGCommands(Constants.COMMAND_RESET_ZERO_XY);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RESET_ZERO_XY);
   store.resetXYJobPosition();
 };
 
 const resetZToZero = () => {
-  executeNormalGCommands(Constants.COMMAND_RESET_ZERO_Z);
+  executeNormalGCommands(Constants.GRBL_COMMAND_RESET_ZERO_Z);
   store.resetZJobPosition();
 };
 </script>
@@ -98,4 +101,4 @@ const resetZToZero = () => {
   }
 }
 </style>
-src/services/execute.commands.service
+src/services/execute.commands.service src/interfaces/configSettings.interface

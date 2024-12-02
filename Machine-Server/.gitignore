@@ -1,5 +1,9 @@
 venv
 Tests
-src/file_management/gcode_stored_files/
+src/files_manager/jobs_stored_files/
+src/files_manager/images_stored_files/
 dist
 build
+**/__pycache__/
+src/olos.db
+AI_models/*

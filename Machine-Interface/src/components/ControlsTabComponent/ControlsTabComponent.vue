@@ -1,12 +1,15 @@
 <template>
-  <div class="column col flex-center q-px-md q-gutter-y-sm">
-    <div class="row full-width justify-center q-gutter-sm">
+  <div class="column col items-center justify-evenly q-px-md">
+    <div class="row fit justify-center q-gutter-x-sm">
       <critical-buttons />
-      <jog-step />
-      <jog-speed />
+      <jog-step :config="config" />
+      <jog-speed :config="config" />
     </div>
-    <jog-buttons />
-    <override-file-settings />
+    <jog-buttons :config="config" />
+    <tools-changer
+      v-if="config?.machine_type !== Constants.MACHINE_TYPE.VINYL_CUTTER"
+    />
+    <override-file-settings :config="config" />
   </div>
 </template>
 
@@ -16,4 +19,15 @@ import JogStep from './components/JogStepComponent/JogStep.vue';
 import JogSpeed from './components/JogSpeedComponent/JogSpeed.vue';
 import JogButtons from './components/JogButtonsComponent/JogButtons.vue';
 import OverrideFileSettings from './components/OverrideSettingsComponent/OverrideSettings.vue';
+import ToolsChanger from './components/ToolsChangerComponent/ToolsChanger.vue';
+import { onMounted, ref } from 'vue';
+import { Config } from 'src/interfaces/configSettings.interface';
+import { configurationSettings } from 'src/services/configuration.loader.service';
+import { Constants } from 'src/constants';
+
+const config = ref<Config | null>(null);
+
+onMounted(async () => {
+  config.value = await configurationSettings();
+});
 </script>

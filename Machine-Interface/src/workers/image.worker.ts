@@ -10,6 +10,7 @@ addEventListener('message', (event) => {
     let cutSVGContent: string | null = null;
     const { drawType, imageData } = event.data;
     const ditheringSettings = JSON.parse(event.data.dithering);
+
     if (drawType === Constants.IMAGE_DRAW_TYPE.CUT_MARK) {
       cutSVGContent = modifyImageForCuttingOrMarking(imageData);
     } else if (Constants.IMAGE_DRAW_TYPE.ENGRAVE) {

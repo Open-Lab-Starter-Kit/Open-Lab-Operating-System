@@ -1,0 +1,130 @@
+# List of supported machine names
+# - Laser Cutter
+# - cnc
+# - Vinyl Cutter
+# - 3D Scanner
+
+machine_type: Laser Cutter
+
+machine_platform:
+  start_point:
+    x: -1006.3
+    y: -87.8
+    z: 0
+
+  end_point:
+    x: -7.3
+    y: -595.8
+    z: 0
+
+machine_screen:
+  width: 1920
+  height: 1080
+
+ai_configuration:
+  use_ai_image_generator: false
+
+#--------- Vinyl Cutter -----------#
+vinyl_cutter_settings:
+  job_previewer:
+    graph_step_size: 50
+
+#--------- CNC -----------#
+cnc_settings:
+  cameras_enabled: true
+  tool_changer: true
+
+  tools: # cnc tools
+    no_tool:
+      name: No Tool
+      command: M6T0
+    tool_number_1:
+      name: Num1
+      command: M6T1
+    tool_number_2:
+      name: Num2
+      command: M6T2
+    tool_number_3:
+      name: Num3
+      command: M6T3
+    tool_number_4:
+      name: Num4
+      command: M6T4
+    tool_number_5:
+      name: Num5
+      command: M6T5
+    tool_number_6:
+      name: Num6
+      command: M6T6
+    tool_number_7:
+      name: Num7
+      command: M6T7
+    tool_number_8:
+      name: Num8
+      command: M6T8
+    tool_number_9:
+      name: Num9
+      command: M6T9
+    tool_number_10:
+      name: Num10
+      command: M6T10
+    tool_number_11:
+      name: Num11
+      command: M6T11
+    tool_number_12:
+      name: Num12
+      command: M6T12
+
+  job_previewer:
+    graph_step_size: 50
+
+#--------- Laser Cutter -----------#
+laser_cutter_settings:
+  cameras_enabled: true
+
+  tool_changer: true
+  tools: # laser tools
+    no_tool:
+      name: No Tool
+      command: M6T0
+
+    CO2_laser:
+      name: CO2
+      command: M6T1
+
+    Diode_laser:
+      name: Diode
+      command: M6T2
+
+  job_previewer:
+    graph_step_size: 25
+    parking_settings: # for the laser you can implement a parking settings which allow the laser to move when while previewing the job
+      parking_enabled: true
+      point:
+        x: -900
+        y: -70
+        z: -15
+      feed_rate: 5000
+
+  # Warning: changing those settings may cause some issues in the gcode generator
+  gcode_generator: # gcode generator settings
+    laser_power:
+      min: 0
+      max: 100
+    movement_speed:
+      min: 0
+      max: 10000
+    material_thickness:
+      min: 0
+      max: 1000
+    dithering_settings:
+      resolution:
+        min: 0
+        max: 1000
+      grid_algorithm:
+        block_size:
+          min: 0
+          max: 10
+        block_distance:
+          min: 0
+          max: 10
